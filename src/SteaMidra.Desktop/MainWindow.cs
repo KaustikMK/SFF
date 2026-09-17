@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.IO.Compression;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Avalonia;
@@ -13,12 +11,10 @@ namespace SteaMidra.Desktop;
 /// <summary>Native desktop interface for browsing the local Steam catalog and library.</summary>
 public sealed class MainWindow : Window
 {
-    private const string LumaCoreReleaseApi = "https://api.github.com/repos/KoriaPolis/LumaCore/releases/latest";
     private static readonly string[] LumaCoreDlls = ["dwmapi.dll", "xinput1_4.dll", "LumaCore.dll", "LumaCorePayload.dll"];
     private readonly ContentControl _content = new();
     private TextBlock _status = new() { Foreground = Brushes.LightGray };
     private DesktopSettings _settings;
-    private List<StoreGame>? _catalog;
     private readonly List<DownloadItem> _downloads = [];
 
     public MainWindow()
@@ -97,21 +93,27 @@ public sealed class MainWindow : Window
         var query = new TextBox { Watermark = "Search by title or App ID", MinWidth = 360 };
         var results = new StackPanel { Spacing = 8 };
         var search = new Button { Content = "Search", Padding = new Thickness(14, 9), Background = Brush.Parse("#3478C8"), Foreground = Brushes.White };
+        var searching = false;
         async Task RunSearch()
         {
+            if (searching) return;
+            searching = true;
             search.IsEnabled = false;
             try
             {
-                _status.Text = "Loading catalog…";
-                var catalog = await LoadCatalogAsync();
+                _status.Text = "Searching bundled catalog…";
                 var term = query.Text?.Trim() ?? string.Empty;
-                var matches = catalog.Where(game => !game.Nsfw && (string.IsNullOrEmpty(term) || game.Name.Contains(term, StringComparison.OrdinalIgnoreCase) || game.AppId.Contains(term, StringComparison.Ordinal))).Take(50).ToList();
+                var matches = await SearchCatalogAsync(term);
                 results.Children.Clear();
                 foreach (var game in matches) results.Children.Add(StoreResult(game));
                 _status.Text = matches.Count == 0 ? "No matching products found." : $"Showing {matches.Count} product{(matches.Count == 1 ? string.Empty : "s")}.";
             }
-            catch (Exception exception) { _status.Text = $"Could not load the bundled catalog: {exception.Message}"; }
-            finally { search.IsEnabled = true; }
+            catch (Exception exception)
+            {
+                StartupDiagnostics.Report(exception, context: "store search");
+                _status.Text = $"Could not search the bundled catalog: {exception.Message}";
+            }
+            finally { searching = false; search.IsEnabled = true; }
         }
         search.Click += async (_, _) => await RunSearch();
         query.KeyDown += async (_, eventArgs) => { if (eventArgs.Key == Avalonia.Input.Key.Enter) await RunSearch(); };
@@ -199,7 +201,7 @@ public sealed class MainWindow : Window
         return new Border { Background = Brush.Parse("#20232A"), CornerRadius = new CornerRadius(10), Padding = new Thickness(24), Child = new StackPanel { Spacing = 14, Children =
         {
             new TextBlock { Text = "Auto LC Setup", FontSize = 18, FontWeight = FontWeight.SemiBold, Foreground = Brushes.White },
-            new TextBlock { Text = "Downloads and validates the latest release before replacing existing files. Steam is closed only after the download is ready.", TextWrapping = TextWrapping.Wrap, Foreground = Brushes.LightGray }, steamPath, install
+            new TextBlock { Text = "Installs the LumaCore files bundled with this SteaMidra release. Steam is closed only when the files are ready to copy.", TextWrapping = TextWrapping.Wrap, Foreground = Brushes.LightGray }, steamPath, install
         }}};
     }
 
@@ -210,8 +212,8 @@ public sealed class MainWindow : Window
         var steamPath = Path.GetFullPath(steamPathText);
         try
         {
-            _status.Text = "Downloading and validating the latest LumaCore release…";
-            var files = await DownloadLumaCoreAsync();
+            _status.Text = "Validating bundled LumaCore files…";
+            var files = LoadBundledLumaCoreFiles();
             _status.Text = "Closing Steam…";
             await Task.Run(CloseSteam);
             await Task.Run(() => InstallLumaCoreFiles(steamPath, files));
@@ -221,19 +223,14 @@ public sealed class MainWindow : Window
         catch (Exception exception) { _status.Text = $"LumaCore installation failed: {exception.Message}"; }
     }
 
-    private static async Task<Dictionary<string, byte[]>> DownloadLumaCoreAsync()
+    private static Dictionary<string, byte[]> LoadBundledLumaCoreFiles()
     {
-        using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("SteaMidra-Desktop");
-        var release = await client.GetFromJsonAsync<LumaCoreRelease>(LumaCoreReleaseApi) ?? throw new InvalidOperationException("GitHub did not return a LumaCore release.");
-        var asset = release.Assets.FirstOrDefault(item => item.Name.Equals("Release.zip", StringComparison.OrdinalIgnoreCase)) ?? release.Assets.FirstOrDefault(item => item.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException("The LumaCore release does not contain a ZIP asset.");
-        var archive = await client.GetByteArrayAsync(asset.BrowserDownloadUrl);
         var files = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
-        using var zip = new ZipArchive(new MemoryStream(archive), ZipArchiveMode.Read);
         foreach (var name in LumaCoreDlls)
         {
-            var entry = zip.Entries.FirstOrDefault(item => Path.GetFileName(item.FullName).Equals(name, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException($"The release archive is missing {name}.");
-            using var source = entry.Open(); using var destination = new MemoryStream(); await source.CopyToAsync(destination); files[name] = destination.ToArray();
+            var path = new[] { Path.Combine(AppContext.BaseDirectory, "lumacore", name), Path.Combine(Directory.GetCurrentDirectory(), "lumacore", name) }.FirstOrDefault(File.Exists);
+            if (path is null) throw new FileNotFoundException($"The bundled LumaCore file {name} is missing. Reinstall this SteaMidra release.");
+            files[name] = File.ReadAllBytes(path);
         }
         return files;
     }
@@ -270,12 +267,20 @@ public sealed class MainWindow : Window
         return games.OrderBy(game => game.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private async Task<List<StoreGame>> LoadCatalogAsync()
+    private static async Task<List<StoreGame>> SearchCatalogAsync(string term)
     {
-        if (_catalog is not null) return _catalog;
         var path = FindCatalogPath() ?? throw new FileNotFoundException("store_metadata/games.json was not found. Reinstall the application.");
-        _catalog = await Task.Run(() => JsonSerializer.Deserialize<List<StoreGame>>(File.ReadAllText(path), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? []);
-        return _catalog;
+        var matches = new List<StoreGame>(50);
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 64 * 1024, useAsync: true);
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        await foreach (var game in JsonSerializer.DeserializeAsyncEnumerable<StoreGame>(stream, options).ConfigureAwait(false))
+        {
+            if (game is null || game.Nsfw) continue;
+            if (!string.IsNullOrEmpty(term) && !game.Name.Contains(term, StringComparison.OrdinalIgnoreCase) && !game.AppId.Contains(term, StringComparison.Ordinal)) continue;
+            matches.Add(game);
+            if (matches.Count == 50) break;
+        }
+        return matches;
     }
 
     private static string? FindCatalogPath()
@@ -306,8 +311,6 @@ public sealed class MainWindow : Window
     private static Button ActionCard(string heading, string description, Action action) => new() { Margin = new Thickness(0, 0, 14, 14), Padding = new Thickness(18), Background = Brush.Parse("#29313D"), Foreground = Brushes.White, HorizontalContentAlignment = HorizontalAlignment.Left, Content = new StackPanel { Spacing = 8, Children = { new TextBlock { Text = heading, FontWeight = FontWeight.Bold, FontSize = 16 }, new TextBlock { Text = description, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.LightGray } } }, Command = new DelegateCommand(action) };
     private void RestartSteam() { try { CloseSteam(); _status.Text = "Steam processes were stopped. Start Steam normally when ready."; } catch (Exception exception) { _status.Text = $"Could not restart Steam: {exception.Message}"; } }
 
-    private sealed record LumaCoreRelease(List<LumaCoreReleaseAsset> Assets);
-    private sealed record LumaCoreReleaseAsset(string Name, string BrowserDownloadUrl);
     private sealed record StoreGame(string AppId, string Name, string? Type, bool Nsfw);
     private sealed record InstalledGame(string AppId, string Name, string InstallDirectory);
     private sealed record DownloadItem(string Name, string AppId, string Status);

@@ -43,6 +43,26 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Bundle latest LumaCore release
+        shell: pwsh
+        run: |
+          $headers = @{ Accept = 'application/vnd.github+json'; 'User-Agent' = 'SteaMidra-release-build' }
+          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/KoriaPolis/LumaCore/releases/latest' -Headers $headers
+          $asset = $release.assets | Where-Object { $_.name -eq 'Release.zip' } | Select-Object -First 1
+          if (-not $asset) { $asset = $release.assets | Where-Object { $_.name -like '*.zip' } | Select-Object -First 1 }
+          if (-not $asset) { throw 'The latest LumaCore release does not contain a ZIP asset.' }
+
+          $archive = Join-Path $env:RUNNER_TEMP 'LumaCore.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'LumaCore'
+          $destination = 'src\SteaMidra.Desktop\lumacore'
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $archive -Headers $headers
+          Expand-Archive -Path $archive -DestinationPath $extract -Force
+          New-Item -ItemType Directory -Path $destination -Force | Out-Null
+          foreach ($name in 'dwmapi.dll', 'xinput1_4.dll', 'LumaCore.dll', 'LumaCorePayload.dll') {
+            $file = Get-ChildItem -Path $extract -Recurse -File | Where-Object { $_.Name -ieq $name } | Select-Object -First 1
+            if (-not $file) { throw "The LumaCore archive is missing $name." }
+            Copy-Item -Path $file.FullName -Destination (Join-Path $destination $name) -Force
+          }
       - name: Install NSIS
         uses: negrutiu/nsis-install@v2
       - name: Build installer
@@ -54,6 +74,9 @@ jobs:
           $exe = Get-Item 'dist\SteaMidra_GUI\SteaMidra_GUI.exe' -ErrorAction Stop
           if ($exe.Length -lt 100KB) { throw 'Published desktop executable is unexpectedly small.' }
           if (Get-ChildItem -Path dist\SteaMidra_GUI -Recurse -Filter python*.dll) { throw 'Python runtime leaked into the native desktop package.' }
+          foreach ($name in 'dwmapi.dll', 'xinput1_4.dll', 'LumaCore.dll', 'LumaCorePayload.dll') {
+            if (-not (Test-Path "dist\SteaMidra_GUI\lumacore\$name")) { throw "Bundled LumaCore file is missing from the Windows package: $name" }
+          }
       - name: Create portable Windows zip
         shell: pwsh
         run: |
