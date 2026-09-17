@@ -1,4 +1,7 @@
 using System.Diagnostics;
+using System.IO.Compression;
+using System.Net.Http;
+using System.Net.Http.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -10,8 +13,8 @@ namespace SteaMidra.Desktop;
 public sealed class MainWindow : Window
 {
     private readonly ContentControl _content = new();
-    private readonly TextBlock _title = new() { FontSize = 24, FontWeight = FontWeight.SemiBold };
-    private readonly TextBlock _status = new() { Foreground = Brushes.LightGray };
+    private TextBlock _status = new() { Foreground = Brushes.LightGray };
+    private static readonly string[] LumaCoreDlls = ["dwmapi.dll", "xinput1_4.dll", "LumaCore.dll", "LumaCorePayload.dll"];
 
     public MainWindow()
     {
@@ -60,19 +63,33 @@ public sealed class MainWindow : Window
 
     private void Navigate(string page)
     {
-        _title.Text = page;
-        _status.Text = page switch
+        // A control can belong to only one visual tree. Clear the old page before
+        // constructing the replacement, then use fresh header controls for it.
+        _content.Content = null;
+
+        var title = new TextBlock { Text = page, FontSize = 24, FontWeight = FontWeight.SemiBold };
+        _status = new TextBlock
         {
-            "Home" => "Native desktop UI · no Python runtime required",
-            "Library" => "Choose a Steam library folder in Settings to begin scanning.",
-            "Downloads" => "No active downloads.",
-            _ => "This native page is ready for its service integration."
+            Foreground = Brushes.LightGray,
+            Text = page switch
+            {
+                "Home" => "Native desktop UI · no Python runtime required",
+                "Library" => "Choose a Steam library folder in Settings to begin scanning.",
+                "Downloads" => "No active downloads.",
+                "Auto LC Setup" => "Choose your Steam folder, then install or update LumaCore.",
+                _ => "This native page is ready for its service integration."
+            }
         };
 
         var panel = new StackPanel { Spacing = 18 };
-        panel.Children.Add(_title);
+        panel.Children.Add(title);
         panel.Children.Add(_status);
-        panel.Children.Add(page == "Home" ? HomeContent() : PagePlaceholder(page));
+        panel.Children.Add(page switch
+        {
+            "Home" => HomeContent(),
+            "Auto LC Setup" => LumaCoreSetupContent(),
+            _ => PagePlaceholder(page)
+        });
         _content.Content = panel;
     }
 
@@ -83,8 +100,149 @@ public sealed class MainWindow : Window
         cards.Children.Add(ActionCard("Browse manifests", "Find games and depot manifests.", () => Navigate("Store")));
         cards.Children.Add(ActionCard("Downloads", "View active and completed work.", () => Navigate("Downloads")));
         cards.Children.Add(ActionCard("Settings", "Configure Steam and app preferences.", () => Navigate("Settings")));
+        cards.Children.Add(ActionCard("Auto LC Setup", "Install or update LumaCore in your Steam folder.", () => Navigate("Auto LC Setup")));
         return cards;
     }
+
+    private Control LumaCoreSetupContent()
+    {
+        var steamPath = new TextBox
+        {
+            Text = FindSteamPath(),
+            Watermark = @"Steam folder, e.g. C:\Program Files (x86)\Steam",
+            MinWidth = 480
+        };
+        var install = new Button
+        {
+            Content = "Install LumaCore",
+            Padding = new Thickness(14, 10),
+            Background = Brush.Parse("#3478C8"),
+            Foreground = Brushes.White
+        };
+        install.Click += async (_, _) =>
+        {
+            install.IsEnabled = false;
+            try { await InstallLumaCoreAsync(steamPath.Text); }
+            finally { install.IsEnabled = true; }
+        };
+
+        return new Border
+        {
+            Background = Brush.Parse("#20232A"),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(24),
+            Child = new StackPanel
+            {
+                Spacing = 14,
+                Children =
+                {
+                    new TextBlock { Text = "Auto LC Setup", FontSize = 18, FontWeight = FontWeight.SemiBold, Foreground = Brushes.White },
+                    new TextBlock { Text = "The installer closes Steam, removes legacy injector files, and downloads the latest LumaCore release.", TextWrapping = TextWrapping.Wrap, Foreground = Brushes.LightGray },
+                    steamPath,
+                    install
+                }
+            }
+        };
+    }
+
+    private static string FindSteamPath()
+    {
+        if (!OperatingSystem.IsWindows()) return string.Empty;
+        var candidates = new[]
+        {
+            Environment.GetEnvironmentVariable("ProgramFiles(x86)") is { Length: > 0 } programFilesX86 ? Path.Combine(programFilesX86, "Steam") : string.Empty,
+            Environment.GetEnvironmentVariable("ProgramFiles") is { Length: > 0 } programFiles ? Path.Combine(programFiles, "Steam") : string.Empty
+        };
+        return candidates.FirstOrDefault(Directory.Exists) ?? string.Empty;
+    }
+
+    private async Task InstallLumaCoreAsync(string? steamPathText)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            _status.Text = "LumaCore is only available on Windows.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(steamPathText) || !Directory.Exists(steamPathText))
+        {
+            _status.Text = "Choose a valid Steam folder before installing LumaCore.";
+            return;
+        }
+
+        var steamPath = Path.GetFullPath(steamPathText);
+        try
+        {
+            _status.Text = "Closing Steam...";
+            await Task.Run(() => CloseSteam());
+            _status.Text = "Downloading the latest LumaCore release...";
+            await Task.Run(() => DownloadAndInstallLumaCore(steamPath));
+            _status.Text = "LumaCore installed. Start Steam normally when ready.";
+        }
+        catch (Exception exception)
+        {
+            _status.Text = $"LumaCore installation failed: {exception.Message}";
+        }
+    }
+
+    private static void CloseSteam()
+    {
+        foreach (var process in Process.GetProcessesByName("steam"))
+        {
+            process.Kill();
+            process.WaitForExit(10_000);
+        }
+    }
+
+    private static void DownloadAndInstallLumaCore(string steamPath)
+    {
+        CleanLegacyInjectionFiles(steamPath);
+        foreach (var name in LumaCoreDlls)
+        {
+            var oldFile = Path.Combine(steamPath, name);
+            if (File.Exists(oldFile)) File.Delete(oldFile);
+        }
+
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("SteaMidra-Desktop");
+        var release = client.GetFromJsonAsync<LumaCoreRelease>("https://api.github.com/repos/KoriaPolis/LumaCore/releases/latest").GetAwaiter().GetResult()
+            ?? throw new InvalidOperationException("GitHub did not return a LumaCore release.");
+        var asset = release.Assets.FirstOrDefault(item => item.Name.Equals("release.zip", StringComparison.OrdinalIgnoreCase))
+            ?? release.Assets.FirstOrDefault(item => item.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException("The LumaCore release does not contain a ZIP asset.");
+
+        var archive = client.GetByteArrayAsync(asset.BrowserDownloadUrl).GetAwaiter().GetResult();
+        using var zip = new ZipArchive(new MemoryStream(archive), ZipArchiveMode.Read);
+        foreach (var name in LumaCoreDlls)
+        {
+            var entry = zip.Entries.FirstOrDefault(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException($"The release archive is missing {name}.");
+            entry.ExtractToFile(Path.Combine(steamPath, name), overwrite: true);
+        }
+    }
+
+    private static void CleanLegacyInjectionFiles(string steamPath)
+    {
+        foreach (var name in new[]
+        {
+            "GreenLuma_2024_x64.dll", "GreenLuma_2024_x86.dll", "GreenLuma_2025_x64.dll",
+            "GreenLuma_2025_x86.dll", "GreenLuma.dll", "GreenLumaSettings_2025.exe",
+            "DLLInjector.exe", "DLLInjector.ini", "SteamKillInject.exe"
+        })
+        {
+            var path = Path.Combine(steamPath, name);
+            if (File.Exists(path)) File.Delete(path);
+        }
+
+        foreach (var name in new[] { "AppList", "GreenLuma2025_Files" })
+        {
+            var path = Path.Combine(steamPath, name);
+            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+        }
+    }
+
+    private sealed record LumaCoreRelease(List<LumaCoreReleaseAsset> Assets);
+    private sealed record LumaCoreReleaseAsset(string Name, string BrowserDownloadUrl);
 
     private static Control PagePlaceholder(string page) => new Border
     {
