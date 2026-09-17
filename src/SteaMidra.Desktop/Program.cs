@@ -70,10 +70,10 @@ internal static class StartupDiagnostics
         catch { return false; }
     }
 
-    public static void Report(Exception exception, bool showDialog = false)
+    public static void Report(Exception exception, bool showDialog = false, string context = "runtime")
     {
         var message = $"{DateTimeOffset.UtcNow:O}{Environment.NewLine}" +
-            $"SteaMidra {Assembly.GetExecutingAssembly().GetName().Version} failed during startup.{Environment.NewLine}" +
+            $"SteaMidra {Assembly.GetExecutingAssembly().GetName().Version} failed during {context}.{Environment.NewLine}" +
             exception + Environment.NewLine + Environment.NewLine;
         var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SteaMidra", "startup.log");
 

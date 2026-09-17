@@ -12,6 +12,7 @@ analytics.json
 greenluma/
 build/
 dist/
+src/SteaMidra.Desktop/lumacore/
 bin/
 obj/
 .hypothesis/
