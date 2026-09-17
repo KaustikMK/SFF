@@ -151,7 +151,6 @@ hiddenimports = [
     'sff.manifest.workshop_tracker',
     'sff.cloud.cloud_saves',
     'sff.cloud.google_drive',
-    'sff.core._gc',
     'google.auth',
     'google.auth.transport.requests',
     'google.oauth2.credentials',
