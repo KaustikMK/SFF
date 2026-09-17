@@ -1,5 +1,7 @@
 ; SteaMidra Windows Installer
-; NSIS MUI2 script — 64-bit, user-level, LZMA compression
+; NSIS MUI2 script — user-level, LZMA compression.
+; The app payload is win-x86 so it can run in Wine/Winlator's 32-bit
+; containers as well as regular 64-bit Windows.
 
 !define APPNAME    "SteaMidra"
 !define COMPANY    "Midrags"
@@ -22,7 +24,6 @@ BrandingText "${APPNAME} ${VERSION}"
 ; MUI2
 ; ============================================================
 !include "MUI2.nsh"
-!include "x64.nsh"
 !include "Sections.nsh"
 
 !define MUI_ABORTWARNING
@@ -49,16 +50,6 @@ BrandingText "${APPNAME} ${VERSION}"
 !insertmacro MUI_UNPAGE_INSTFILES
 
 !insertmacro MUI_LANGUAGE "English"
-
-; ============================================================
-; .onInit — require 64-bit Windows
-; ============================================================
-Function .onInit
-    ${Unless} ${RunningX64}
-        MessageBox MB_OK|MB_ICONSTOP "This installer requires a 64-bit version of Windows."
-        Abort
-    ${EndUnless}
-FunctionEnd
 
 ; ============================================================
 ; Main install section

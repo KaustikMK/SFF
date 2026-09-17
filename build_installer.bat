@@ -16,8 +16,10 @@ echo Version: %APP_VERSION%
 :: Allow NSI-only mode: pass "nsi" as first argument to skip dotnet publish
 if /i "%~1"=="nsi" goto compile_nsi
 
-echo [1/2] Publishing native .NET distribution...
-dotnet publish src\SteaMidra.Desktop\SteaMidra.Desktop.csproj -c Release -r win-x64 --self-contained true -o dist\SteaMidra_GUI
+echo [1/2] Publishing Wine/Winlator-compatible native .NET distribution...
+REM win-x86 works on 64-bit Windows and avoids requiring a WoW64/box64-only
+REM Wine container on Android. Keep the complete publish folder together.
+dotnet publish src\SteaMidra.Desktop\SteaMidra.Desktop.csproj -c Release -r win-x86 --self-contained true -p:PublishSingleFile=false -p:DebugType=None -o dist\SteaMidra_GUI
 if %errorlevel% neq 0 (
     echo .NET publish failed.
     pause
