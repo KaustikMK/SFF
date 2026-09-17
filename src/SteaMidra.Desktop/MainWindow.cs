@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 
 namespace SteaMidra.Desktop;
 
@@ -70,9 +71,9 @@ public sealed class MainWindow : Window
     private static string PageStatus(string page) => page switch
     {
         "Home" => "Choose a task to manage your Steam installation.",
-        "Store" => "Search the bundled catalog, then open the selected product in the official Steam client.",
+        "Store" => "Search the bundled catalog and install its Lua and manifests into Steam.",
         "Library" => "Scan every configured Steam library for installed applications.",
-        "Downloads" => "Steam handles installs; this page keeps the requests started from the Store.",
+        "Downloads" => "Review Lua and manifest installs started from the Store.",
         "Auto LC Setup" => "Choose your Steam folder, then install or update LumaCore.",
         _ => "Ready."
     };
@@ -82,7 +83,7 @@ public sealed class MainWindow : Window
         var cards = new WrapPanel { ItemWidth = 240, ItemHeight = 132 };
         cards.Children.Add(ActionCard("Steam library", "Scan installed applications in every Steam library.", () => Navigate("Library")));
         cards.Children.Add(ActionCard("Browse store", "Search the bundled Steam catalog.", () => Navigate("Store")));
-        cards.Children.Add(ActionCard("Downloads", "View Steam install requests started here.", () => Navigate("Downloads")));
+        cards.Children.Add(ActionCard("Downloads", "View Lua and manifest installs started here.", () => Navigate("Downloads")));
         cards.Children.Add(ActionCard("Settings", "Set or detect your Steam folder.", () => Navigate("Settings")));
         cards.Children.Add(ActionCard("Auto LC Setup", "Install the latest LumaCore release safely.", () => Navigate("Auto LC Setup")));
         return cards;
@@ -123,7 +124,7 @@ public sealed class MainWindow : Window
     private Control StoreResult(StoreGame game)
     {
         var install = new Button { Content = "Install with Steam", Padding = new Thickness(10, 6) };
-        install.Click += (_, _) => RequestSteamInstall(game);
+        install.Click += async (_, _) => await InstallWithSteamAsync(game, install);
         var open = new Button { Content = "Open in Steam", Padding = new Thickness(10, 6) };
         open.Click += (_, _) => OpenSteamProduct(game);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { install, open } };
@@ -135,7 +136,26 @@ public sealed class MainWindow : Window
 
     private void OpenSteamProduct(StoreGame game) => OpenSteamUri(game, $"steam://store/{game.AppId}", "Opened in Steam", $"Opened {game.Name} in Steam. Purchase or install it from the Steam client.");
 
-    private void RequestSteamInstall(StoreGame game) => OpenSteamUri(game, $"steam://install/{game.AppId}", "Install requested", $"Sent an install request for {game.Name} to Steam. Steam will confirm that the product is available to this account.");
+    private async Task InstallWithSteamAsync(StoreGame game, Button install)
+    {
+        install.IsEnabled = false;
+        try
+        {
+            var steamPath = _settings.SteamPath ?? FindSteamPath();
+            _status.Text = $"Preparing {game.Name}…";
+            var result = await SteamInstallService.InstallAsync(
+                steamPath, game.AppId, _settings.HubcapApiKey ?? string.Empty,
+                progress => Dispatcher.UIThread.Post(() => _status.Text = progress));
+            _downloads.Add(new DownloadItem(game.Name, game.AppId, $"Installed {result.ManifestCount} manifest(s)"));
+            _status.Text = $"Installed Lua and {result.ManifestCount} manifest(s) for {game.Name}. Restart Steam if it is already running.";
+        }
+        catch (Exception exception)
+        {
+            StartupDiagnostics.Report(exception, context: "Steam manifest install");
+            _status.Text = $"Installation failed: {exception.Message}";
+        }
+        finally { install.IsEnabled = true; }
+    }
 
     private void OpenSteamUri(StoreGame game, string uri, string status, string message)
     {
@@ -172,7 +192,7 @@ public sealed class MainWindow : Window
     private Control DownloadsContent()
     {
         var items = new StackPanel { Spacing = 8 };
-        if (_downloads.Count == 0) items.Children.Add(InformationCard("No Steam install requests have been started from this session."));
+        if (_downloads.Count == 0) items.Children.Add(InformationCard("No Lua or manifest installs have been started from this session."));
         foreach (var item in _downloads.AsEnumerable().Reverse()) items.Children.Add(InformationCard($"{item.Name}\nApp ID {item.AppId} · {item.Status}"));
         return items;
     }
@@ -184,13 +204,14 @@ public sealed class MainWindow : Window
     private Control SettingsContent()
     {
         var steamPath = new TextBox { Text = _settings.SteamPath ?? FindSteamPath(), Watermark = @"Steam folder, e.g. C:\Program Files (x86)\Steam", MinWidth = 480 };
+        var hubcapApiKey = new TextBox { Text = _settings.HubcapApiKey, PasswordChar = '●', Watermark = "Hubcap API key (required for Install with Steam)", MinWidth = 480 };
         var save = new Button { Content = "Save settings", Padding = new Thickness(14, 9), Background = Brush.Parse("#3478C8"), Foreground = Brushes.White };
         save.Click += (_, _) =>
         {
             if (string.IsNullOrWhiteSpace(steamPath.Text) || !Directory.Exists(steamPath.Text)) { _status.Text = "Choose an existing Steam folder before saving."; return; }
-            _settings = new DesktopSettings(Path.GetFullPath(steamPath.Text)); SaveSettings(_settings); _status.Text = "Steam folder saved.";
+            _settings = new DesktopSettings(Path.GetFullPath(steamPath.Text), hubcapApiKey.Text?.Trim()); SaveSettings(_settings); _status.Text = "Steam folder and API key saved.";
         };
-        return new StackPanel { Spacing = 12, Children = { new TextBlock { Text = "Steam folder", Foreground = Brushes.White }, steamPath, save } };
+        return new StackPanel { Spacing = 12, Children = { new TextBlock { Text = "Steam folder", Foreground = Brushes.White }, steamPath, new TextBlock { Text = "Hubcap API key", Foreground = Brushes.White }, hubcapApiKey, save } };
     }
 
     private Control LumaCoreSetupContent()
@@ -217,7 +238,7 @@ public sealed class MainWindow : Window
             _status.Text = "Closing Steam…";
             await Task.Run(CloseSteam);
             await Task.Run(() => InstallLumaCoreFiles(steamPath, files));
-            _settings = new DesktopSettings(steamPath); SaveSettings(_settings);
+            _settings = _settings with { SteamPath = steamPath }; SaveSettings(_settings);
             _status.Text = "LumaCore installed. Start Steam normally when ready.";
         }
         catch (Exception exception) { _status.Text = $"LumaCore installation failed: {exception.Message}"; }
@@ -314,7 +335,7 @@ public sealed class MainWindow : Window
     private sealed record StoreGame(string AppId, string Name, string? Type, bool Nsfw);
     private sealed record InstalledGame(string AppId, string Name, string InstallDirectory);
     private sealed record DownloadItem(string Name, string AppId, string Status);
-    private sealed record DesktopSettings(string? SteamPath);
+    private sealed record DesktopSettings(string? SteamPath, string? HubcapApiKey = null);
 }
 
 internal sealed class DelegateCommand(Action execute) : System.Windows.Input.ICommand
