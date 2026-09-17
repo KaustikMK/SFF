@@ -42,9 +42,9 @@ failure modes seen in the wild:
 import logging
 from typing import Optional
 
-from PyQt6.QtWidgets import QSystemTrayIcon, QMenu, QApplication
-from PyQt6.QtGui import QIcon, QAction
-from PyQt6.QtCore import pyqtSignal, QObject, QTimer, Qt
+from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QApplication
+from PySide6.QtGui import QIcon, QAction
+from PySide6.QtCore import Signal, QObject, QTimer, Qt
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +68,8 @@ class TrayIcon(QObject):
         exit_requested: user clicked "Exit"
     """
 
-    show_requested = pyqtSignal()
-    exit_requested = pyqtSignal()
+    show_requested = Signal()
+    exit_requested = Signal()
 
     def __init__(self, parent=None, icon_path=""):
         # Parent to QApplication if no explicit parent so the tray

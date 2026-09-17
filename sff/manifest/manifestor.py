@@ -22,10 +22,10 @@ from pathlib import Path
 
 # Safe import to handle headless environments
 try:
-    from PyQt6.QtCore import Qt, QUrl, QTimer, QEventLoop
-    from PyQt6.QtWidgets import QApplication
-    from PyQt6.QtWebEngineWidgets import QWebEngineView
-    from PyQt6.QtWebEngineCore import QWebEngineDownloadRequest
+    from PySide6.QtCore import Qt, QUrl, QTimer, QEventLoop
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtWebEngineWidgets import QWebEngineView
+    from PySide6.QtWebEngineCore import QWebEngineDownloadRequest
     PYQT_AVAILABLE = True
 except ImportError:
     PYQT_AVAILABLE = False
@@ -59,7 +59,7 @@ class ManifestorAutomator:
         Retorna o caminho para o arquivo baixado ou None em caso de falha/timeout.
         """
         if not PYQT_AVAILABLE:
-            self._log("PyQt6 ou PyQt6-WebEngine não estão instalados.")
+            self._log("PySide6 ou PySide6-WebEngine não estão instalados.")
             return None
         app = QApplication.instance()
         created_app = False

@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with SteaMidra.  If not, see <https://www.gnu.org/licenses/>.
 
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QLabel
-from PyQt6.QtCore import Qt, QPoint, QTimer
-from PyQt6.QtGui import QCursor
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QLabel
+from PySide6.QtCore import Qt, QPoint, QTimer
+from PySide6.QtGui import QCursor
 
 
 class TitleBarWidget(QWidget):
@@ -157,7 +157,7 @@ class TitleBarWidget(QWidget):
             super().mouseDoubleClickEvent(event)
 
     def _show_system_menu(self, pos):
-        from PyQt6.QtWidgets import QMenu
+        from PySide6.QtWidgets import QMenu
         menu = QMenu(self)
         restore_a = menu.addAction("&Restore")
         menu.addSeparator()

@@ -20,8 +20,8 @@ import threading
 from enum import Enum
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QThread, Qt, pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QObject, QThread, Qt, Signal
+from PySide6.QtWidgets import (
     QApplication,
     QDialog,
     QDialogButtonBox,
@@ -38,7 +38,7 @@ from PyQt6.QtWidgets import (
 
 
 class _Invoker(QObject):
-    _signal = pyqtSignal(object)
+    _signal = Signal(object)
 
     def __init__(self):
         super().__init__()

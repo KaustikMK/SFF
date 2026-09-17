@@ -45,7 +45,7 @@ from pathlib import Path
 import urllib.request as _req
 import urllib.parse as _urlparse
 
-from PyQt6.QtCore import QTimer
+from PySide6.QtCore import QTimer
 
 from sff.game_list_fallback import (
     browse_games_json,

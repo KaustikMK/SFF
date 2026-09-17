@@ -20,12 +20,12 @@ import re
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import QByteArray, QEasingCurve, QEvent, QObject, QPropertyAnimation, QThread, QTimer, QUrl, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QPixmap, QTextCursor
-from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtWebEngineCore import QWebEngineSettings
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QByteArray, QEasingCurve, QEvent, QObject, QPropertyAnimation, QThread, QTimer, QUrl, Qt, Signal
+from PySide6.QtGui import QColor, QPixmap, QTextCursor
+from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWebEngineCore import QWebEngineSettings
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QDialog,
@@ -69,7 +69,7 @@ logger = logging.getLogger(__name__)
 
 
 class StreamEmitter(QObject):
-    text_written = pyqtSignal(str)
+    text_written = Signal(str)
 
     def write(self, text):
         if text:
@@ -80,8 +80,8 @@ class StreamEmitter(QObject):
 
 
 class GenericWorker(QObject):
-    finished = pyqtSignal(object)
-    error = pyqtSignal(str)
+    finished = Signal(object)
+    error = Signal(str)
 
     def __init__(self, func):
         super().__init__()
@@ -172,7 +172,7 @@ class SFFMainWindow(QMainWindow):
         self._qt_log_buffer: list[str] = []
         self._qt_log_buffer_max = 400
         self._qt_log_dropped = 0
-        from PyQt6.QtCore import QTimer as _QTimer
+        from PySide6.QtCore import QTimer as _QTimer
         self._web_log_flush_timer = _QTimer(self)
         self._web_log_flush_timer.setInterval(250)
         self._web_log_flush_timer.timeout.connect(self._flush_web_log_buffer)
@@ -259,7 +259,7 @@ class SFFMainWindow(QMainWindow):
         # default Qt opaque painting for Linux.
         if sys.platform == "win32":
             try:
-                from PyQt6.QtCore import Qt as _Qt
+                from PySide6.QtCore import Qt as _Qt
                 self._web_view.setAttribute(_Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
                 self._web_view.setAttribute(_Qt.WidgetAttribute.WA_NoSystemBackground, True)
                 self._web_view.setAutoFillBackground(False)
@@ -278,7 +278,7 @@ class SFFMainWindow(QMainWindow):
         )
         # Cap the Chromium HTTP cache so a long session doesn't balloon.
         try:
-            from PyQt6.QtWebEngineCore import QWebEngineProfile
+            from PySide6.QtWebEngineCore import QWebEngineProfile
             profile = self._web_view.page().profile()
             profile.setHttpCacheMaximumSize(256 * 1024 * 1024)
         except Exception:
@@ -698,7 +698,7 @@ class SFFMainWindow(QMainWindow):
                 pass
             if failed:
                 try:
-                    from PyQt6.QtWidgets import QMessageBox
+                    from PySide6.QtWidgets import QMessageBox
                     QMessageBox.warning(self, "SteaMidra update — issue", msg)
                 except Exception:
                     pass
@@ -750,7 +750,7 @@ class SFFMainWindow(QMainWindow):
         from sff.game.fix_game.service import EmuMode
         acf = self._get_selected_acf()
         if acf is None:
-            from PyQt6.QtWidgets import QMessageBox
+            from PySide6.QtWidgets import QMessageBox
             QMessageBox.warning(self, "No Game Selected",
                                 "Please select a game from the dropdown first.")
             return
@@ -1511,7 +1511,7 @@ class SFFMainWindow(QMainWindow):
                 item = QListWidgetItem(f"{s.clean_name}: {val_str}")
                 item.setData(Qt.ItemDataRole.UserRole, s)
                 lw.addItem(item)
-        from PyQt6.QtCore import Qt
+        from PySide6.QtCore import Qt
         _refresh_list()
         layout.addWidget(lw)
         btn_row = QHBoxLayout()

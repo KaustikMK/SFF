@@ -18,7 +18,7 @@
 
 """Reusable '?' help button for tab headers."""
 
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QHBoxLayout, QMessageBox, QPushButton, QWidget,
 )
 

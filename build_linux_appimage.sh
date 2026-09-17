@@ -2,7 +2,7 @@
 # SteaMidra AppImage build script
 # Usage: bash build_linux_appimage.sh [--fresh]
 #
-#   (no flag)  — reuse existing .venv if PyQt6 is already installed (fast)
+#   (no flag)  — reuse existing .venv if PySide6 is already installed (fast)
 #   --fresh    — wipe .venv and reinstall everything from scratch
 #                (only needed after requirements-linux.txt changes)
 #
@@ -85,10 +85,10 @@ source .venv/bin/activate
 echo "    Python: $(python --version) | pip: $(pip --version | awk '{print $2}')"
 
 # ── Step 2: Dependencies ──────────────────────────────────────────────────────
-if [ "$FORCE_FRESH" = "1" ] || ! python -c "import PyQt6" 2>/dev/null; then
+if [ "$FORCE_FRESH" = "1" ] || ! python -c "import PySide6" 2>/dev/null; then
     echo ""
     echo "==> [2/7] Installing dependencies..."
-    echo "    NOTE: PyQt6 + WebEngine are ~250 MB — first run takes 5-20 min."
+    echo "    NOTE: PySide6 + WebEngine are ~250 MB — first run takes 5-20 min."
     echo "    You will see download progress below. Wait even if it looks slow."
     echo ""
 
@@ -111,7 +111,7 @@ if [ "$FORCE_FRESH" = "1" ] || ! python -c "import PyQt6" 2>/dev/null; then
     echo "    All dependencies installed."
 else
     echo ""
-    echo "==> [2/7] PyQt6 already installed — skipping pip install."
+    echo "==> [2/7] PySide6 already installed — skipping pip install."
     echo "    (pass --fresh to force full reinstall)"
     pip install pyinstaller -q 2>/dev/null || pip install pyinstaller
 fi
@@ -146,8 +146,8 @@ SELF="$(readlink -f "$0")"
 HERE="${SELF%/*}"
 export PATH="$HERE/usr/bin:$PATH"
 export LD_LIBRARY_PATH="$HERE/usr/bin:$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
-export QT_PLUGIN_PATH="$HERE/usr/bin/PyQt6/Qt6/plugins"
-export QT_QPA_PLATFORM_PLUGIN_PATH="$HERE/usr/bin/PyQt6/Qt6/plugins/platforms"
+export QT_PLUGIN_PATH="$HERE/usr/bin/PySide6/Qt/plugins"
+export QT_QPA_PLATFORM_PLUGIN_PATH="$HERE/usr/bin/PySide6/Qt/plugins/platforms"
 export QTWEBENGINE_DISABLE_SANDBOX=1
 exec "$HERE/usr/bin/SteaMidra_GUI" "$@"
 APPRUN_EOF

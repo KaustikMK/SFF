@@ -97,13 +97,9 @@ jobs:
           python -m pip install -r requirements.txt || exit /b 1
           python -m pip install steam==1.4.4 --no-deps || exit /b 1
           python -m pip install pyinstaller || exit /b 1
-          python -c "import PyQt6.QtCore, PyQt6.QtWebEngineCore, prompt_toolkit, selenium, keyring, nacl, cryptography, googleapiclient, zendriver, bs4; import sff.core._gc; from sff.cloud.google_drive import is_available; assert is_available(); print('all imports OK')" || exit /b 1
+          python -c "import PySide6.QtCore, PySide6.QtWebEngineCore, prompt_toolkit, selenium, keyring, nacl, cryptography, googleapiclient, zendriver, bs4; import sff.core._gc; from sff.cloud.google_drive import is_available; assert is_available(); print('all imports OK')" || exit /b 1
           call build_installer.bat
-          if not exist "dist\SteaMidra_GUI\_internal\PyQt6\Qt6\bin\Qt6Core.dll" (
-            echo ERROR: Qt6Core.dll missing from _internal — PyInstaller produced a hollow build.
-            exit /b 1
-          )
-          powershell -NoProfile -Command "$bad = Get-ChildItem -LiteralPath 'dist\SteaMidra_GUI' -Recurse -File | Where-Object { $_.Name -match '\.so(\..*)?$' -or $_.FullName -match '(?i)(^|[\\/])x86_64-linux-gnu([\\/]|$)' -or $_.FullName -match '(?i)(^|[\\/])linux_x86_64([\\/]|$)' }; if ($bad) { $bad | Select-Object -First 40 FullName; throw 'Linux binary files leaked into Windows package' }"
+          powershell -NoProfile -Command "$files = Get-ChildItem -LiteralPath 'dist\SteaMidra_GUI' -Recurse -File; $required = 'Qt6Core.dll', 'QtWebEngineProcess.exe'; foreach ($name in $required) { if (-not ($files | Where-Object Name -eq $name)) { throw ($name + ' missing from PySide6 build — PyInstaller produced a hollow package.') } }; $bad = $files | Where-Object { $_.Name -match '\.so(\..*)?$' -or $_.FullName -match '(?i)(^|[\\/])x86_64-linux-gnu([\\/]|$)' -or $_.FullName -match '(?i)(^|[\\/])linux_x86_64([\\/]|$)' }; if ($bad) { $bad | Select-Object -First 40 FullName; throw 'Linux binary files leaked into Windows package' }"
       - name: Create portable Windows zip
         shell: pwsh
         run: |

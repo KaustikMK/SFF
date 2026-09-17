@@ -19,7 +19,7 @@
 """
 QWebChannel bridge — exposes Python backend functions to the web UI.
 
-All I/O methods dispatch to QThread workers and emit results via pyqtSignal.
+All I/O methods dispatch to QThread workers and emit results via Signal.
 Only trivial getters use synchronous result= slots.
 """
 
@@ -43,8 +43,8 @@ _DDMOD_PCT_RE = re.compile(r"^\s*(\d{1,3}(?:\.\d+)?)%\s")
 _UNSAFE_FILENAME_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, Qt, QThread, QTimer, pyqtSignal, pyqtSlot
-from PyQt6.QtWidgets import QFileDialog
+from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtWidgets import QFileDialog
 
 logger = logging.getLogger(__name__)
 
@@ -225,8 +225,8 @@ def _get_ssl_ctx():
 
 class _Worker(QObject):
     """Generic thread worker for async bridge operations."""
-    finished = pyqtSignal(object)
-    error = pyqtSignal(str)
+    finished = Signal(object)
+    error = Signal(str)
 
     def __init__(self, func, *args, **kwargs):
         super().__init__()
@@ -503,15 +503,15 @@ class WebBridge(QObject):
     """
 
     # --- Signals (Python → JS) ---
-    search_results = pyqtSignal(str)
-    depot_history_results = pyqtSignal(str)
-    download_progress = pyqtSignal(str)
-    task_finished = pyqtSignal(str)
-    game_branches_ready = pyqtSignal(str)
-    download_queue_state = pyqtSignal(str)
-    task_progress = pyqtSignal(str)
-    log_message = pyqtSignal(str)
-    lc_progress = pyqtSignal(str)
+    search_results = Signal(str)
+    depot_history_results = Signal(str)
+    download_progress = Signal(str)
+    task_finished = Signal(str)
+    game_branches_ready = Signal(str)
+    download_queue_state = Signal(str)
+    task_progress = Signal(str)
+    log_message = Signal(str)
+    lc_progress = Signal(str)
 
     def __init__(self, ui, steam_path, parent=None):
         super().__init__(parent)
@@ -581,7 +581,7 @@ class WebBridge(QObject):
         self._LIBRARY_IMAGE_CACHE_MAX = 500
 
         # Pre-cache installed games on a background thread so
-        # get_installed_games (a sync @pyqtSlot) never blocks the main thread.
+        # get_installed_games (a sync @Slot) never blocks the main thread.
         self._installed_games_cache = None
         self._games_prefetch_timer = QTimer(self)
         self._games_prefetch_timer.setInterval(120_000)
@@ -599,7 +599,7 @@ class WebBridge(QObject):
 
     def _preload_all_store_data(self):
         """Warm store metadata off the GUI thread, once per process window."""
-        from PyQt6.QtCore import QTimer as _QTimer
+        from PySide6.QtCore import QTimer as _QTimer
 
         def _start():
             # If the Store is already searching, that worker will populate the
@@ -712,22 +712,22 @@ class WebBridge(QObject):
         except Exception:
             pass
 
-    @pyqtSlot()
+    @Slot()
     def signal_ready(self):
         return _bridge_signal_ready(self)
-    @pyqtSlot()
+    @Slot()
     def window_minimize(self):
         return _bridge_window_minimize(self)
-    @pyqtSlot()
+    @Slot()
     def window_maximize(self):
         return _bridge_window_maximize(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def window_is_maximized(self):
         return _bridge_window_is_maximized(self)
-    @pyqtSlot()
+    @Slot()
     def window_close(self):
         return _bridge_window_close(self)
-    @pyqtSlot()
+    @Slot()
     def toggle_ui(self):
         return _bridge_toggle_ui(self)
     def _maybe_auto_contribute_provider(self):
@@ -771,7 +771,7 @@ class WebBridge(QObject):
 
         self._run_async(_do, on_done=_on_done)
 
-    @pyqtSlot(str)
+    @Slot(str)
     def validate_game_files(self, app_id):
         return _bridge_validate_game_files(self, app_id)
     def _auto_update_was_registered(self, app_id) -> bool:
@@ -840,27 +840,27 @@ class WebBridge(QObject):
 
     # ── ASYNC slots — dispatch to QThread ────────────────────────
 
-    @pyqtSlot()
+    @Slot()
     def refresh_store_metadata(self):
         return _bridge_refresh_store_metadata(self)
-    @pyqtSlot()
+    @Slot()
     def warm_store_metadata(self):
         return _bridge_warm_store_metadata(self)
-    @pyqtSlot(str, int, int, str, str)
-    @pyqtSlot(str, int, int, str, str, str)
+    @Slot(str, int, int, str, str)
+    @Slot(str, int, int, str, str, str)
     def search_games(self, query, offset, per_page, sort_by='updated', tag='', request_id=''):
         return _bridge_search_games(self, query, offset, per_page, sort_by, tag, request_id)
-    @pyqtSlot(str, bool)
+    @Slot(str, bool)
     def fetch_depot_history(self, app_id, force_refresh):
         return _bridge_fetch_depot_history(self, app_id, force_refresh)
-    @pyqtSlot(str)
+    @Slot(str)
     def download_game_fastest(self, app_id):
         return _bridge_download_game_fastest(self, app_id)
-    @pyqtSlot(str, str, str, str, str, str, str)
-    @pyqtSlot(str, str, str, str, str, str)
-    @pyqtSlot(str, str, str, str, str)
-    @pyqtSlot(str, str, str, str)
-    @pyqtSlot(str, str, str)
+    @Slot(str, str, str, str, str, str, str)
+    @Slot(str, str, str, str, str, str)
+    @Slot(str, str, str, str, str)
+    @Slot(str, str, str, str)
+    @Slot(str, str, str)
     def download_game_with_source(self, app_id, source, request_update='0', lua_path='', manifest_folder='', branch='', file_type=''):
         return _bridge_download_game_with_source(self, app_id, source, request_update, lua_path, manifest_folder, branch, file_type)
     def _run_local_import(self, app_id, lua_path, manifest_folder=''):
@@ -1265,22 +1265,22 @@ class WebBridge(QObject):
             "info": True,
         }))
 
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def download_dlc_oureveryday(self, dlc_appid, parent_appid):
         return _bridge_download_dlc_oureveryday(self, dlc_appid, parent_appid)
-    @pyqtSlot(str, str, str)
+    @Slot(str, str, str)
     def download_game_version(self, app_id, manifest_override_json, source='oureveryday'):
         return _bridge_download_game_version(self, app_id, manifest_override_json, source)
-    @pyqtSlot(str, str, str)
+    @Slot(str, str, str)
     def download_game_version_native(self, app_id, manifest_override_json, source='oureveryday'):
         return _bridge_download_game_version_native(self, app_id, manifest_override_json, source)
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def download_older_version_auto(self, app_id, build_id):
         return _bridge_download_older_version_auto(self, app_id, build_id)
-    @pyqtSlot(str)
+    @Slot(str)
     def dlc_check_get_list(self, app_id):
         return _bridge_dlc_check_get_list(self, app_id)
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def run_game_action(self, app_id, action):
         return _bridge_run_game_action(self, app_id, action)
     def _resolve_acf(self, app_id):
@@ -1320,22 +1320,22 @@ class WebBridge(QObject):
             logger.warning("_resolve_acf failed: %s", e)
         return None
 
-    @pyqtSlot(str)
+    @Slot(str)
     def fix_game(self, config_json):
         return _bridge_fix_game(self, config_json)
-    @pyqtSlot(str)
+    @Slot(str)
     def revert_game(self, game_path):
         return _bridge_revert_game(self, game_path)
-    @pyqtSlot(str)
+    @Slot(str)
     def generate_gbe_token(self, config_json):
         return _bridge_generate_gbe_token(self, config_json)
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def scan_cloud_games(self, steam_path, steam32_id):
         return _bridge_scan_cloud_games(self, steam_path, steam32_id)
-    @pyqtSlot(str)
+    @Slot(str)
     def backup_cloud_save(self, config_json):
         return _bridge_backup_cloud_save(self, config_json)
-    @pyqtSlot(str)
+    @Slot(str)
     def restore_cloud_save(self, config_json):
         return _bridge_restore_cloud_save(self, config_json)
     @staticmethod
@@ -1372,45 +1372,45 @@ class WebBridge(QObject):
             pass
         return None
 
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def get_bundled_tool_path(self, tool_name: str) -> str:
         """Return the absolute path to a bundled tool executable, or empty string."""
         p = self._get_bundled_tool_path(tool_name)
         return str(p) if p else ""
 
-    @pyqtSlot(str)
+    @Slot(str)
     def rclone_backup_save(self, config_json):
         return _bridge_rclone_backup_save(self, config_json)
-    @pyqtSlot(str)
+    @Slot(str)
     def rclone_list_remotes(self, rclone_exe_json):
         return _bridge_rclone_list_remotes(self, rclone_exe_json)
-    @pyqtSlot(str)
+    @Slot(str)
     def rclone_test_remote(self, config_json):
         return _bridge_rclone_test_remote(self, config_json)
-    @pyqtSlot(str)
+    @Slot(str)
     def rclone_open_config(self, rclone_exe_json):
         return _bridge_rclone_open_config(self, rclone_exe_json)
-    @pyqtSlot(str)
+    @Slot(str)
     def open_workshop(self, app_id):
         """Workshop browser removed."""
         self._emit_task_result("workshop", False, "Workshop Browser has been removed.")
 
-    @pyqtSlot(str)
+    @Slot(str)
     def download_workshop_item(self, params_json):
         """Workshop item download removed."""
         self._emit_task_result("workshop_download", False, "Workshop item download has been removed.")
 
-    @pyqtSlot(str)
+    @Slot(str)
     def workshop_auto_import(self, app_id):
         """Workshop auto-import removed."""
         self._emit_task_result("workshop_auto_import", False, "Workshop auto-import has been removed.")
 
-    @pyqtSlot(str)
+    @Slot(str)
     def workshop_bypass_download(self, params_json):
         """Workshop bypass download removed."""
         self._emit_task_result("workshop_bypass", False, "Workshop bypass download has been removed.")
 
-    @pyqtSlot(str)
+    @Slot(str)
     def check_game_update(self, app_id):
         return _bridge_check_game_update(self, app_id)
     def _record_update_state(self, app_id_str: str, result: dict) -> None:
@@ -1484,37 +1484,37 @@ class WebBridge(QObject):
             return bool(overrides[app_id_str])
         return bool(global_on)
 
-    @pyqtSlot(str, bool, result=str)
+    @Slot(str, bool, result=str)
     def set_game_update_override(self, app_id, enabled):
         return _bridge_set_game_update_override(self, app_id, enabled)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def let_updates_list_games(self):
         return _bridge_let_updates_list_games(self)
-    @pyqtSlot(bool, result=str)
+    @Slot(bool, result=str)
     def let_updates_set_helper(self, enabled):
         return _bridge_let_updates_set_helper(self, enabled)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def let_updates_apply(self, payload_json):
         return _bridge_let_updates_apply(self, payload_json)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def let_updates_add_game(self, app_id):
         return _bridge_let_updates_add_game(self, app_id)
-    @pyqtSlot(str, result=bool)
+    @Slot(str, result=bool)
     def get_game_update_override(self, app_id):
         return _bridge_get_game_update_override(self, app_id)
-    @pyqtSlot(str, bool)
+    @Slot(str, bool)
     def set_game_update_check(self, app_id, enabled):
         return _bridge_set_game_update_check(self, app_id, enabled)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def get_game_update_state(self, app_id):
         return _bridge_get_game_update_state(self, app_id)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def get_game_branches(self, app_id):
         return _bridge_get_game_branches(self, app_id)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def refresh_game_branches(self, app_id):
         return _bridge_refresh_game_branches(self, app_id)
-    @pyqtSlot(str, str, result=str)
+    @Slot(str, str, result=str)
     def get_crack_info(self, app_id, game_name):
         """Return CrakFiles info for a game + whether its crack build id
         matches the latest public build id. Memory-only, instant."""
@@ -1535,7 +1535,7 @@ class WebBridge(QObject):
             "fix": _pick_crack_fix(entry),
             "source_crack": entry.get("source_crack", [])[:1],
         })
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def apply_game_crack(self, app_id, game_name):
         """Download the crack archive for a game and extract it into the
         installed game folder. Runs in a background worker."""
@@ -1606,7 +1606,7 @@ class WebBridge(QObject):
             self._emit_task_result("crack_apply", bool(ok), str(msg), app_id=app_id)
 
         self._run_async(_do, on_done=_on_done, on_error=lambda e: self._emit_task_result("crack_apply", False, str(e), app_id=app_id))
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def check_lua_folder_migration(self):
         """List .lua files in Steam/config/lua (SteamTools/OST folder) that
         have not been handled yet. Memory/local IO only, never network."""
@@ -1625,7 +1625,7 @@ class WebBridge(QObject):
             logger.warning("check_lua_folder_migration failed: %s", e)
             return json.dumps({"files": [], "known": [], "new": []})
 
-    @pyqtSlot(str)
+    @Slot(str)
     def migrate_lua_folder(self, files_json):
         """Move .lua files from Steam/config/lua into config/stplug-in so
         LumaCore loads them. Existing targets are skipped (reported, kept)."""
@@ -1684,7 +1684,7 @@ class WebBridge(QObject):
 
         self._run_async(_do, on_done=_on_done, on_error=lambda e: self._emit_task_result("lua_migration", False, str(e)))
 
-    @pyqtSlot(str)
+    @Slot(str)
     def lua_folder_migration_dismiss(self, files_json):
         """Record file names as handled without moving them, so the popup
         only reappears for files that show up later."""
@@ -1765,7 +1765,7 @@ class WebBridge(QObject):
         finally:
             self._emit_download_queue_state()
 
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def download_queue_enqueue(self, items_json, source):
         """Enqueue one or more {app_id, name} entries and start them up
         to the concurrency limit."""
@@ -1794,7 +1794,7 @@ class WebBridge(QObject):
             logger.exception("download_queue_enqueue failed: %s", e)
             self._emit_task_result("queue_enqueued", False, str(e))
 
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def download_queue_get_state(self):
         try:
             from sff.game import download_queue as _dq
@@ -1802,7 +1802,7 @@ class WebBridge(QObject):
         except Exception as e:
             return json.dumps({"items": [], "paused": False, "concurrency": 3, "error": str(e)})
 
-    @pyqtSlot()
+    @Slot()
     def download_queue_pause(self):
         try:
             from sff.game import download_queue as _dq
@@ -1810,7 +1810,7 @@ class WebBridge(QObject):
         finally:
             self._emit_download_queue_state()
 
-    @pyqtSlot()
+    @Slot()
     def download_queue_resume(self):
         try:
             from sff.game import download_queue as _dq
@@ -1818,7 +1818,7 @@ class WebBridge(QObject):
         finally:
             self._advance_download_queue()
 
-    @pyqtSlot(str)
+    @Slot(str)
     def download_queue_remove(self, item_id):
         try:
             from sff.game import download_queue as _dq
@@ -1826,7 +1826,7 @@ class WebBridge(QObject):
         finally:
             self._emit_download_queue_state()
 
-    @pyqtSlot(str)
+    @Slot(str)
     def download_queue_retry(self, item_id):
         try:
             from sff.game import download_queue as _dq
@@ -1834,7 +1834,7 @@ class WebBridge(QObject):
         finally:
             self._advance_download_queue()
 
-    @pyqtSlot()
+    @Slot()
     def download_queue_clear_finished(self):
         try:
             from sff.game import download_queue as _dq
@@ -1844,7 +1844,7 @@ class WebBridge(QObject):
 
     def _hourly_memory_cleanup(self):
         try:
-            from PyQt6.QtWebEngineCore import QWebEngineProfile
+            from PySide6.QtWebEngineCore import QWebEngineProfile
             QWebEngineProfile.defaultProfile().clearHttpCache()
         except Exception:
             pass
@@ -1999,165 +1999,165 @@ class WebBridge(QObject):
         self._spawn_branches_fetch(app_id, force=force_refresh)
         return json.dumps([])
 
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def ryuu_request_branch(self, app_id, branch):
         return _bridge_ryuu_request_branch(self, app_id, branch)
-    @pyqtSlot(str)
+    @Slot(str)
     def lure_fix_acf(self, app_id):
         return _bridge_lure_fix_acf(self, app_id)
-    @pyqtSlot()
+    @Slot()
     def restart_steam(self):
         return _bridge_restart_steam(self)
-    @pyqtSlot()
+    @Slot()
     def open_log_window(self):
         return _bridge_open_log_window(self)
-    @pyqtSlot(str)
+    @Slot(str)
     def copy_to_clipboard(self, text):
         return _bridge_copy_to_clipboard(self, text)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def browse_game_folder(self):
         return _bridge_browse_game_folder(self)
-    @pyqtSlot(str, str, str)
-    @pyqtSlot(str, str, str, str)
+    @Slot(str, str, str)
+    @Slot(str, str, str, str)
     def run_game_action_outside(self, game_path, game_name_or_app_id, app_id_or_action, action=None):
         return _bridge_run_game_action_outside(self, game_path, game_name_or_app_id, app_id_or_action, action)
-    @pyqtSlot(str)
-    @pyqtSlot(str, str)
+    @Slot(str)
+    @Slot(str, str)
     def install_lumacore(self, steam_path_str, variant=""):
         return _bridge_install_lumacore(self, steam_path_str, variant)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def steam_updates_get_state(self):
         return _bridge_steam_updates_get_state(self)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def steam_updates_set_state(self, action):
         return _bridge_steam_updates_set_state(self, action)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def lumacore_check_update(self, _arg=""):
         return _bridge_lumacore_check_update(self, _arg)
-    @pyqtSlot()
+    @Slot()
     def lumacore_deactivate(self):
         return _bridge_lumacore_deactivate(self)
-    @pyqtSlot(str)
+    @Slot(str)
     def toggle_online_fix(self, app_id):
         return _bridge_toggle_online_fix(self, app_id)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def get_launch_option_status(self, app_id):
         return _bridge_get_launch_option_status(self, app_id)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_applist_games(self):
         return _bridge_get_applist_games(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_platform(self):
         return _bridge_get_platform(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_app_version(self):
         return _bridge_get_app_version(self)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def app_update_check(self, _arg=""):
         return _bridge_app_update_check(self, _arg)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def get_disk_usage(self, path):
         return _bridge_get_disk_usage(self, path)
-    @pyqtSlot(str)
+    @Slot(str)
     def connect_store(self, api_key):
         return _bridge_connect_store(self, api_key)
-    @pyqtSlot()
+    @Slot()
     def store_disconnect(self):
         return _bridge_store_disconnect(self)
-    @pyqtSlot(str)
+    @Slot(str)
     def save_ryuu_key(self, key):
         return _bridge_save_ryuu_key(self, key)
-    @pyqtSlot()
+    @Slot()
     def test_ryuu_key(self):
         return _bridge_test_ryuu_key(self)
-    @pyqtSlot()
+    @Slot()
     def test_ryuu_api_key(self):
         return _bridge_test_ryuu_api_key(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_stored_api_key(self):
         return _bridge_get_stored_api_key(self)
-    @pyqtSlot(str)
+    @Slot(str)
     def open_url(self, url):
         return _bridge_open_url(self, url)
-    @pyqtSlot(str)
+    @Slot(str)
     def launch_game(self, app_id):
         return _bridge_launch_game(self, app_id)
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def set_setting(self, key, value):
         return _bridge_set_setting(self, key, value)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def get_setting(self, key):
         return _bridge_get_setting(self, key)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def provider_contribute_preview(self):
         return _bridge_provider_contribute_preview(self)
-    @pyqtSlot(str)
+    @Slot(str)
     def provider_contribute_submit(self, mode="manual"):
         return _bridge_provider_contribute_submit(self, mode)
-    @pyqtSlot()
+    @Slot()
     def provider_reset_submitted(self):
         return _bridge_provider_reset_submitted(self)
-    @pyqtSlot()
+    @Slot()
     def provider_update_now(self):
         return _bridge_provider_update_now(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_provider_cache_status(self):
         return _bridge_get_provider_cache_status(self)
-    @pyqtSlot()
+    @Slot()
     def linux_setup_now(self):
         return _bridge_linux_setup_now(self)
-    @pyqtSlot()
+    @Slot()
     def fix_slssteam_hash(self):
         return _bridge_fix_slssteam_hash(self)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def get_webui_translations(self, lang):
         return _bridge_get_webui_translations(self, lang)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_steam_libraries(self):
         return _bridge_get_steam_libraries(self)
-    @pyqtSlot(str)
+    @Slot(str)
     def set_active_library(self, path):
         return _bridge_set_active_library(self, path)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def browse_ddmod_download_folder(self):
         return _bridge_browse_ddmod_download_folder(self)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def browse_steam_path(self, _unused=""):
         return _bridge_browse_steam_path(self, _unused)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def open_file_dialog(self):
         return _bridge_open_file_dialog(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def open_archive_dialog(self):
         return _bridge_open_archive_dialog(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def open_exe_file_dialog(self):
         return _bridge_open_exe_file_dialog(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def browse_image_file(self):
         return _bridge_browse_image_file(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def browse_custom_background_file(self):
         return _bridge_browse_custom_background_file(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def export_settings_file(self):
         return _bridge_export_settings_file(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def import_settings_file(self):
         return _bridge_import_settings_file(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def import_depot_manifest_html(self):
         return _bridge_import_depot_manifest_html(self)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def set_custom_background(self, source_path):
         return _bridge_set_custom_background(self, source_path)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def clear_custom_background(self):
         return _bridge_clear_custom_background(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def open_lua_file_dialog(self):
         return _bridge_open_lua_file_dialog(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def open_manifest_folder_dialog(self):
         return _bridge_open_manifest_folder_dialog(self)
     def _get_bulk_import_queue(self):
@@ -2185,19 +2185,19 @@ class WebBridge(QObject):
         except Exception as exc:
             logger.debug("bulk download_progress emit failed: %s", exc)
 
-    @pyqtSlot()
+    @Slot()
     def open_folder_scan(self):
         return _bridge_open_folder_scan(self)
-    @pyqtSlot(str)
+    @Slot(str)
     def enqueue_dropped_files(self, files_json):
         return _bridge_enqueue_dropped_files(self, files_json)
-    @pyqtSlot(str)
+    @Slot(str)
     def enqueue_dropped_blobs(self, blobs_json):
         return _bridge_enqueue_dropped_blobs(self, blobs_json)
-    @pyqtSlot()
+    @Slot()
     def run_bulk_import(self):
         return _bridge_run_bulk_import(self)
-    @pyqtSlot()
+    @Slot()
     def cancel_bulk_import(self):
         return _bridge_cancel_bulk_import(self)
     def _maybe_drain_queue(self, queue):
@@ -2243,38 +2243,38 @@ class WebBridge(QObject):
         except Exception as exc:
             logger.debug("bulk summary emit failed: %s", exc)
 
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_recent_lua_files(self):
         return _bridge_get_recent_lua_files(self)
-    @pyqtSlot(str, str, str, str, str)
-    @pyqtSlot(str, str, str, str, str, str, str)
+    @Slot(str, str, str, str, str)
+    @Slot(str, str, str, str, str, str, str)
     def download_game_ddmod(self, app_id, source, lua_path, manifest_folder='', target_os='', branch='', file_type=''):
         return _bridge_download_game_ddmod(self, app_id, source, lua_path, manifest_folder, target_os, branch, file_type)
-    @pyqtSlot(str, str, str)
+    @Slot(str, str, str)
     def import_local_lua(self, app_id, lua_path, manifest_folder=''):
         return _bridge_import_local_lua(self, app_id, lua_path, manifest_folder)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_games_file_info(self):
         return _bridge_get_games_file_info(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_storage_paths(self):
         return _bridge_get_storage_paths(self)
-    @pyqtSlot()
+    @Slot()
     def update_games_file(self):
         return _bridge_update_games_file(self)
-    @pyqtSlot()
+    @Slot()
     def update_store_lists(self):
         return _bridge_update_store_lists(self)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def search_games_file(self, query):
         return _bridge_search_games_file(self, query)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_avatar_base64(self):
         return _bridge_get_avatar_base64(self)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def set_global_avatar(self, source_path):
         return _bridge_set_global_avatar(self, source_path)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def _scan_installed_games(self):
         return _bridge__scan_installed_games(self)
     def _prefetch_installed_games(self):
@@ -2308,61 +2308,61 @@ class WebBridge(QObject):
             logger.exception("get_installed_games: scan failed")
             return "[]"
 
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_fix_game_list(self):
         return _bridge_get_fix_game_list(self)
-    @pyqtSlot(str, result=str)
+    @Slot(str, result=str)
     def extract_vdf_keys(self, vdf_path):
         return _bridge_extract_vdf_keys(self, vdf_path)
-    @pyqtSlot()
+    @Slot()
     def toggle_music(self):
         return _bridge_toggle_music(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_gse_identity(self):
         return _bridge_get_gse_identity(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_all_settings(self):
         return _bridge_get_all_settings(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_game_list(self):
         return _bridge_get_game_list(self)
-    @pyqtSlot(str)
+    @Slot(str)
     def fetch_library_images(self, app_ids_json):
         return _bridge_fetch_library_images(self, app_ids_json)
-    @pyqtSlot()
+    @Slot()
     def load_library(self):
         return _bridge_load_library(self)
-    @pyqtSlot()
+    @Slot()
     def refresh_library(self):
         return _bridge_refresh_library(self)
-    @pyqtSlot(str, str, str)
+    @Slot(str, str, str)
     def delete_game(self, app_id, game_path, mode):
         return _bridge_delete_game(self, app_id, game_path, mode)
-    @pyqtSlot()
+    @Slot()
     def gdrive_authorize(self):
         return _bridge_gdrive_authorize(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def gdrive_status(self):
         return _bridge_gdrive_status(self)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def get_custom_save_paths(self):
         return _bridge_get_custom_save_paths(self)
-    @pyqtSlot(str, str, result=str)
+    @Slot(str, str, result=str)
     def set_custom_save_path(self, app_id, path):
         return _bridge_set_custom_save_path(self, app_id, path)
-    @pyqtSlot(str)
+    @Slot(str)
     def scan_all_save_locations(self, config_json):
         return _bridge_scan_all_save_locations(self, config_json)
-    @pyqtSlot(str)
+    @Slot(str)
     def backup_all_save_locations(self, config_json):
         return _bridge_backup_all_save_locations(self, config_json)
-    @pyqtSlot(str)
+    @Slot(str)
     def scan_backup_root(self, config_json):
         return _bridge_scan_backup_root(self, config_json)
-    @pyqtSlot(str)
+    @Slot(str)
     def restore_save_location(self, game_entry_json):
         return _bridge_restore_save_location(self, game_entry_json)
-    @pyqtSlot(result=str)
+    @Slot(result=str)
     def dump_achievement_diagnostic(self):
         return _bridge_dump_achievement_diagnostic(self)
 def _fetch_steam_platforms(app_ids):

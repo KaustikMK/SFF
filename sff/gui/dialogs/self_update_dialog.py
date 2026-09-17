@@ -24,8 +24,8 @@ buttons emit signals so the caller can run the existing update flow,
 persist a skip, or just dismiss.
 """
 
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -36,9 +36,9 @@ from PyQt6.QtWidgets import (
 
 
 class SelfUpdateDialog(QDialog):
-    download_now = pyqtSignal()
-    skip_this_version = pyqtSignal()
-    remind_later = pyqtSignal()
+    download_now = Signal()
+    skip_this_version = Signal()
+    remind_later = Signal()
 
     def __init__(self, parent, version, release_notes_markdown):
         super().__init__(parent)

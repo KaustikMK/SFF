@@ -1,6 +1,6 @@
 """Generate web_bridge.py from web_bridge_backup.py and bridge modules.
 
-Reads web_bridge_backup.py, replaces each @pyqtSlot method body with
+Reads web_bridge_backup.py, replaces each @Slot method body with
 a single-line delegation to the corresponding bridge function,
 then writes web_bridge.py. Shared helpers and signals are preserved.
 """
@@ -34,17 +34,17 @@ extra_method_map = {
 
 # Map from bridge functions that use bridge.xxx methods that need to stay
 # For example: _bridge_refresh_library calls bridge.load_library()
-# which itself is a @pyqtSlot. So refresh_library's bridge also needs to
+# which itself is a @Slot. So refresh_library's bridge also needs to
 # call bridge.load_library() through its bridge delegate.
 
 # Read backup
 with open(BACKUP, "r", encoding="utf-8") as f:
     text = f.read()
 
-# Find all @pyqtSlot method definitions
-# Pattern: @pyqtSlot(...)\n    def method_name(self, ...):
+# Find all @Slot method definitions
+# Pattern: @Slot(...)\n    def method_name(self, ...):
 slot_pattern = re.compile(
-    r"((?:    @pyqtSlot[^\n]*\n)+)"
+    r"((?:    @Slot[^\n]*\n)+)"
     r"(    def )(\w+)(\(self[^)]*\):)"
 )
 

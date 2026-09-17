@@ -26,7 +26,7 @@ A second launch sends a SHOW message to the existing instance and exits.
 import logging
 from typing import Callable, Optional
 
-from PyQt6.QtNetwork import QLocalServer, QLocalSocket
+from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
 logger = logging.getLogger(__name__)
 

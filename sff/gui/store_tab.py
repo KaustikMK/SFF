@@ -21,9 +21,9 @@
 import logging
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject, QUrl
-from PyQt6.QtGui import QDesktopServices, QColor, QBrush, QFont
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QThread, Signal, QObject, QUrl
+from PySide6.QtGui import QDesktopServices, QColor, QBrush, QFont
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
     QGroupBox, QMessageBox, QProgressBar, QComboBox,
@@ -72,9 +72,9 @@ class _ManualEntryDialog(QDialog):
 
 class _DepotHistoryWorker(QObject):
     """Fetches depot list + manifest history for a game in background."""
-    finished = pyqtSignal(object)  # dict: {depot_id: [ManifestEntry]}
-    error = pyqtSignal(str)
-    progress = pyqtSignal(str)     # live status messages (e.g. SteamDB per-depot)
+    finished = Signal(object)  # dict: {depot_id: [ManifestEntry]}
+    error = Signal(str)
+    progress = Signal(str)     # live status messages (e.g. SteamDB per-depot)
 
     def __init__(self, app_id, client=None, force_refresh=False):
         super().__init__()
@@ -98,8 +98,8 @@ class _DepotHistoryWorker(QObject):
 
 
 class _FetchWorker(QObject):
-    finished = pyqtSignal(object)
-    error = pyqtSignal(str)
+    finished = Signal(object)
+    error = Signal(str)
 
     def __init__(self, client, query, page, per_page=100):
         super().__init__()
@@ -361,7 +361,7 @@ class VersionPickerDialog(QDialog):
             return
         # If full pipeline is available, ask for source and route through process_from_store
         if self._ui is not None and self._run_tool_fn is not None:
-            from PyQt6.QtWidgets import QDialog as _QDialog, QVBoxLayout as _QVB, QLabel as _QL, QPushButton as _QPB, QHBoxLayout as _QHL
+            from PySide6.QtWidgets import QDialog as _QDialog, QVBoxLayout as _QVB, QLabel as _QL, QPushButton as _QPB, QHBoxLayout as _QHL
             src_dlg = _QDialog(self)
             src_dlg.setWindowTitle("Choose Download Source")
             src_dlg.setMinimumWidth(380)
@@ -431,8 +431,8 @@ class VersionPickerDialog(QDialog):
 
 
 class _ManifestDownloadWorker(QObject):
-    finished = pyqtSignal(int, int)
-    progress = pyqtSignal(str)
+    finished = Signal(int, int)
+    progress = Signal(str)
 
     def __init__(self, app_id, selections: list[tuple[str, str]], steam_path):
         super().__init__()

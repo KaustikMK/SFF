@@ -19,7 +19,7 @@ import json
 import logging
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QTimer, pyqtSignal
+from PySide6.QtCore import QObject, QTimer, Signal
 
 _REQUIRED_KEYS = {"build_id", "toml_found", "hooks_installed", "hooks_missed", "steamclient_sha", "steamui_sha"}
 _TOML_KEYS = {"steamclient", "steamui"}
@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 
 
 class StatusBannerPoller(QObject):
-    unavailable = pyqtSignal(str)
-    cleared = pyqtSignal()
+    unavailable = Signal(str)
+    cleared = Signal()
 
     def __init__(self, steam_path: Path, parent=None):
         super().__init__(parent)
