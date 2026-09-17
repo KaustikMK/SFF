@@ -42,8 +42,8 @@ import urllib.parse as _urlparse
 import urllib.request as _req
 from pathlib import Path
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFileDialog
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFileDialog
 
 logger = logging.getLogger(__name__)
 
@@ -1039,12 +1039,12 @@ def _bridge_open_log_window(bridge):
 
 def _bridge_copy_to_clipboard(bridge, text):
     """Copy text to system clipboard via Qt (works in QWebEngine)."""
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     QApplication.clipboard().setText(text)
 
 def _bridge_browse_game_folder(bridge):
     """Open a native folder-picker dialog and return the selected path (or '')."""
-    from PyQt6.QtWidgets import QFileDialog
+    from PySide6.QtWidgets import QFileDialog
     path = QFileDialog.getExistingDirectory(bridge.parent(), "Select game folder")
     return path or ""
 
@@ -1473,8 +1473,8 @@ def _bridge_get_stored_api_key(bridge):
 
 def _bridge_open_url(bridge, url):
     """Open a URL in the system default browser."""
-    from PyQt6.QtCore import QUrl
-    from PyQt6.QtGui import QDesktopServices
+    from PySide6.QtCore import QUrl
+    from PySide6.QtGui import QDesktopServices
     QDesktopServices.openUrl(QUrl(url))
 
 def _bridge_launch_game(bridge, app_id):
@@ -1492,8 +1492,8 @@ def _bridge_launch_game(bridge, app_id):
         # native ELF binaries and Proton/Wine .exe games with correct
         # compatibility tool settings.
         if sys.platform != "win32":
-            from PyQt6.QtCore import QUrl
-            from PyQt6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            from PySide6.QtGui import QDesktopServices
             ok = QDesktopServices.openUrl(QUrl(f"steam://run/{app_id}"))
             bridge._emit_task_result(
                 "launch_game",
@@ -1529,8 +1529,8 @@ def _bridge_launch_game(bridge, app_id):
         subprocess.Popen([str(exe)], cwd=str(exe.parent))
         bridge._emit_task_result("launch_game", True, f"Launched {exe.name}", app_id=app_id, path=str(exe))
     except Exception as exc:
-        from PyQt6.QtCore import QUrl
-        from PyQt6.QtGui import QDesktopServices
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
         ok = QDesktopServices.openUrl(QUrl(f"steam://run/{app_id}"))
         bridge._emit_task_result(
             "launch_game",
@@ -1890,7 +1890,7 @@ def _bridge_open_exe_file_dialog(bridge):
 
 def _bridge_browse_image_file(bridge):
     """Opens a native file picker filtered to PNG/JPG/JPEG images. Returns selected path or ''."""
-    from PyQt6.QtWidgets import QFileDialog as _QFD
+    from PySide6.QtWidgets import QFileDialog as _QFD
     path, _ = _QFD.getOpenFileName(
         bridge.parent(),
         "Select Avatar Image",

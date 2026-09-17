@@ -38,7 +38,7 @@ import sys
 import time as _time
 from pathlib import Path
 
-from PyQt6.QtCore import QTimer
+from PySide6.QtCore import QTimer
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ def _bridge_show_linux_fastest_workflow_notice(bridge, app_id):
     }))
 
 
-# ── Public download-domain functions (were @pyqtSlot methods) ────────
+# ── Public download-domain functions (were @Slot methods) ────────
 
 def _bridge_download_game_fastest(bridge, app_id):
     """Platform-aware fastest download (auto-selects source).

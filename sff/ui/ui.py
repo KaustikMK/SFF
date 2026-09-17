@@ -1194,7 +1194,7 @@ class UI:
         # nothing happened in the GUI. force a visible confirm dialog
         # here so the worker-thread prompt_confirm cant get swallowed.
         try:
-            from PyQt6.QtWidgets import QApplication, QMessageBox
+            from PySide6.QtWidgets import QApplication, QMessageBox
             from sff.gui.gui_prompts import _on_gui_thread as _gui_invoke
             if QApplication.instance() is not None:
                 def _show_avail():

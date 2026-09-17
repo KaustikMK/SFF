@@ -29,7 +29,7 @@ import os
 import shutil
 from pathlib import Path
 
-from PyQt6.QtCore import QTimer
+from PySide6.QtCore import QTimer
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +171,7 @@ def _bridge_run_game_action(bridge, app_id, action):
                     return f"Action '{action}' is not supported on this platform or configuration."
                 if action == "check_updates":
                     bridge.task_finished.emit(json.dumps({"task":"app_update","status":"downloading","progress":10,"message":"Downloading update..."}))
-                    from PyQt6.QtWidgets import QApplication
+                    from PySide6.QtWidgets import QApplication
                     QApplication.processEvents()
                     try:
                         result = non_game_actions[action]()

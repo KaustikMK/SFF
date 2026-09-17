@@ -8,7 +8,7 @@ Common problems and what to try.
 
 The app opens but the Modern UI is completely black with only a "Switch to Classic UI" button visible. This is a `QtWebEngineProcess.exe` initialization failure — the embedded Chromium renderer could not start. Work through the steps below in order.
 
-**Note:** The Modern UI uses **PyQt6-WebEngine** (bundled Chromium). It does **not** use Microsoft Edge WebView2 — installing WebView2 will not fix this.
+**Note:** The Modern UI uses **PySide6-WebEngine** (bundled Chromium). It does **not** use Microsoft Edge WebView2 — installing WebView2 will not fix this.
 
 ---
 

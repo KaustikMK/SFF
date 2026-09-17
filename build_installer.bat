@@ -54,4 +54,4 @@ if %errorlevel% neq 0 (
 )
 
 echo Done. Installer written to SteaMidra-%APP_VERSION%-Setup.exe
-pause
+if not defined CI pause

@@ -19,7 +19,7 @@ pip install steam==1.4.4 --no-deps
 
 Why two commands? `steam==1.4.4` has a stale `urllib3<2` constraint that conflicts with Selenium 4.x. Using `--no-deps` skips that outdated check — steam works fine with urllib3 2.x at runtime.
 
-`requirements.txt` covers everything in one file: CLI, GUI (PyQt6), online-fix (Selenium), and Tor fallback (`torpy`).
+`requirements.txt` covers everything in one file: CLI, GUI (PySide6), online-fix (Selenium), and Tor fallback (`torpy`).
 
 ## Avoid Dependency Conflicts
 
@@ -39,7 +39,7 @@ pip install steam==1.4.4 --no-deps
 - **selenium** — Browser automation for multiplayer fix (Chrome required)
 - **seleniumbase** — UC mode for SteamDB Cloudflare bypass (Layer 3)
 - **curl_cffi** — Chrome impersonation for SteamDB fast path (Layer 1)
-- **PyQt6 / PyQt6-WebEngine** — GUI
+- **PySide6 / PySide6-Addons** — GUI
 - **torpy / pysocks** — Pure-Python Tor fallback for GMRC request codes
 - **steam / gevent / protobuf** — Steam CDN and depot access
 - **google-auth / google-auth-oauthlib / google-api-python-client** — Google Drive cloud save support
@@ -62,7 +62,7 @@ To enable automatic Tor fallback:
 ## Verifying Installation
 
 ```python
-python -c "import httpx; import bs4; import PyQt6; print('All dependencies installed!')"
+python -c "import httpx; import bs4; import PySide6; print('All dependencies installed!')"
 ```
 
 ## Troubleshooting
@@ -90,5 +90,5 @@ pip install -r requirements.txt
 pip install steam==1.4.4 --no-deps
 
 build_simple.bat        # CLI build
-build_simple_gui.bat    # GUI build (requires PyQt6 — already in requirements.txt)
+build_simple_gui.bat    # GUI build (requires PySide6 — already in requirements.txt)
 ```

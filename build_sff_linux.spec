@@ -21,13 +21,13 @@ block_cipher = None
 spec_root = os.path.abspath(SPECPATH)
 icon_path  = os.path.join(spec_root, 'SFF.png')
 
-# ── PyQt6 / WebEngine — must use collect_all, NOT just hiddenimports ──────────
+# ── PySide6 / WebEngine — must use collect_all, NOT just hiddenimports ──────────
 # hiddenimports only works for pure-Python modules.
-# PyQt6 is a compiled C extension with Qt shared libraries that require
+# PySide6 is a compiled C extension with Qt shared libraries that require
 # collect_all() to be properly bundled into the output directory.
-_qt6  = collect_all('PyQt6')
-_wec  = collect_all('PyQt6.QtWebEngineCore')
-_wew  = collect_all('PyQt6.QtWebEngineWidgets')
+_qt6  = collect_all('PySide6')
+_wec  = collect_all('PySide6.QtWebEngineCore')
+_wew  = collect_all('PySide6.QtWebEngineWidgets')
 
 _qt_datas    = _qt6[0] + _wec[0] + _wew[0]
 _qt_binaries = _qt6[1] + _wec[1] + _wew[1]
@@ -86,7 +86,7 @@ if os.path.isdir(store_metadata_dir):
     datas.append((store_metadata_dir, 'store_metadata'))
 
 # ── Bundle system libs required by Qt6WebEngine ──────────────────────────────
-# pyqt6-webengine-qt6 (PyPI) links against these system libs at compile time
+# PySide6-Addons (PyPI) links against these system libs at compile time
 # but does NOT ship them. Bundle them here so the AppImage is self-contained
 # and end users need zero additional installs (just like the Windows EXE).
 #

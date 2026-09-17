@@ -17,9 +17,9 @@
 # along with SteaMidra.  If not, see <https://www.gnu.org/licenses/>.
 import logging
 
-from PyQt6.QtCore import QTimer, QUrl
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import QMessageBox, QVBoxLayout, QWidget
+from PySide6.QtCore import QTimer, QUrl
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import QMessageBox, QVBoxLayout, QWidget
 
 logger = logging.getLogger(__name__)
 

@@ -23,8 +23,8 @@ import os
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import QThread, pyqtSignal, QObject
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QThread, Signal, QObject
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QGroupBox, QComboBox, QCheckBox, QFileDialog,
     QMessageBox, QTextEdit, QRadioButton, QButtonGroup, QScrollArea,
@@ -101,8 +101,8 @@ def _scan_installed_games(steam_path = None):
 
 
 class _FixWorker(QObject):
-    finished = pyqtSignal(bool, str)
-    log_msg = pyqtSignal(str)
+    finished = Signal(bool, str)
+    log_msg = Signal(str)
 
     def __init__(self, game_path, app_id, emu_mode,
                  unpack_steamstub: bool, generate_config: bool, create_launch_bat: bool,
@@ -165,8 +165,8 @@ class _FixWorker(QObject):
 
 
 class _RevertWorker(QObject):
-    finished = pyqtSignal(bool, str)
-    log_msg = pyqtSignal(str)
+    finished = Signal(bool, str)
+    log_msg = Signal(str)
 
     def __init__(self, game_path):
         super().__init__()

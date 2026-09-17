@@ -21,8 +21,8 @@
 import logging
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QThread, Signal, QObject
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QGroupBox, QMessageBox, QTableWidget, QTableWidgetItem,
     QHeaderView, QTextEdit, QFileDialog, QFrame,
@@ -36,8 +36,8 @@ logger = logging.getLogger(__name__)
 
 
 class _BackupWorker(QObject):
-    log_msg = pyqtSignal(str)
-    finished = pyqtSignal(bool, str)
+    log_msg = Signal(str)
+    finished = Signal(bool, str)
 
     def __init__(
         self,

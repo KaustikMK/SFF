@@ -21,14 +21,14 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QMessageBox
+from PySide6.QtCore import QObject, Signal
+from PySide6.QtWidgets import QMessageBox
 
 logger = logging.getLogger(__name__)
 
 
 class DdmodLauncher(QObject):
-    finished = pyqtSignal(str, str)
+    finished = Signal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)

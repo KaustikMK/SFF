@@ -21,15 +21,15 @@ import os
 import sys
 from pathlib import Path
 
-# guard the PyQt6 import so a hollow build (CI accident) shows a useful
+# guard the PySide6 import so a hollow build (CI accident) shows a useful
 # message instead of just dumping ModuleNotFoundError to a console window
 # that's already gone. happened once with the v6.3.1 workflow build —
 # never again.
 try:
-    from PyQt6.QtGui import QIcon
+    from PySide6.QtGui import QIcon
 except ImportError as _qt_err:
     _msg = (
-        "SteaMidra failed to start because PyQt6 is missing from the install.\n\n"
+        "SteaMidra failed to start because PySide6 is missing from the install.\n\n"
         "This usually means the EXE you downloaded is incomplete (a CI build "
         "shipped without the GUI runtime). Re-download the latest release from:\n\n"
         "https://github.com/Midrags/SFF/releases/latest\n\n"
@@ -99,8 +99,8 @@ os.environ.setdefault(
     '--no-sandbox --ignore-gpu-blocklist',
 )
 
-import PyQt6.QtWebEngineWidgets  # noqa: F401 - must import before QCoreApplication
-from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox
+import PySide6.QtWebEngineWidgets  # noqa: F401 - must import before QCoreApplication
+from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
 
 from sff.steam_path import validate_steam_path
 from sff.core.storage.settings import get_setting, set_setting
@@ -118,7 +118,7 @@ except Exception as e:
             f.write(msg)
     except Exception:
         pass
-    from PyQt6.QtWidgets import QApplication, QMessageBox
+    from PySide6.QtWidgets import QApplication, QMessageBox
     app = QApplication.instance() or QApplication(sys.argv)
     QMessageBox.critical(None, "SteaMidra startup error", msg[:2000])
     sys.exit(1)
@@ -403,7 +403,7 @@ def main():
     if sys.platform == "win32":
         import ctypes
         from ctypes import wintypes
-        from PyQt6.QtCore import QAbstractNativeEventFilter
+        from PySide6.QtCore import QAbstractNativeEventFilter
 
         _TASKBAR_CREATED_MSG = ctypes.windll.user32.RegisterWindowMessageW("TaskbarCreated")
 
@@ -441,7 +441,7 @@ def main():
     # A13: explicit "Quit SteaMidra" entry on the tray context menu,
     # alongside the existing Exit. Always full-quits regardless of
     # CLOSE_TO_TRAY. Exit stays as-is (no rename, no rewire).
-    from PyQt6.QtGui import QAction as _QAction
+    from PySide6.QtGui import QAction as _QAction
 
     def _on_tray_quit_steamidra():
         try:
@@ -480,7 +480,7 @@ def main():
 
     # mirror Main.py:551-555 for the GUI entry point; defer so window.show() paints first
     if sys.platform == "linux":
-        from PyQt6.QtCore import QTimer
+        from PySide6.QtCore import QTimer
 
         def _run_slssteam_update_check():
             try:
@@ -524,7 +524,7 @@ def main():
     # A9: startup self-update popup. Defer 2s so the window paints first.
     # The whole body is wrapped so a GitHub failure or dialog construction
     # error never crashes the GUI (preservation requirement 3.20).
-    from PyQt6.QtCore import QTimer
+    from PySide6.QtCore import QTimer
 
     def _maybe_self_update():
         try:

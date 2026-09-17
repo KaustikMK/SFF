@@ -21,9 +21,9 @@
 import logging
 from datetime import datetime
 
-from PyQt6.QtCore import QObject, pyqtSignal, Qt
-from PyQt6.QtGui import QTextCursor, QFont
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QObject, Signal, Qt
+from PySide6.QtGui import QTextCursor, QFont
+from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit,
     QComboBox, QLabel, QApplication,
 )
@@ -51,7 +51,7 @@ def _live_log_max_lines() -> int:
 
 class _LogSignalEmitter(QObject):
     """Thread-safe bridge: emits log records as HTML strings on the GUI thread."""
-    record_emitted = pyqtSignal(int, str)  # (levelno, html_line)
+    record_emitted = Signal(int, str)  # (levelno, html_line)
 
 
 class QtLogHandler(logging.Handler):
