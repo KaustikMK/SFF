@@ -444,10 +444,43 @@ def _bridge_run_windows_fastest(bridge, app_id, source='', request_update=False,
         except Exception as e:
             logger.warning("ensure_library_has_app failed: %s", e)
 
-        # Step 9: skip manifest download — Lua + depotcache already seeded.
-        # ManifestDownloader would trigger a 20-45s steam_client login that
-        # freezes the UI. The acf_writer + ensure_library_has_app above
-        # already registered everything Steam needs.
+        # Step 9: fetch the depot manifests.  The ACF and Lua registration
+        # above make the title visible to Steam, but they do not put the
+        # depot manifest payloads in depotcache.  Without those files Steam
+        # cannot resolve the selected depots when the user starts the install.
+        bridge.download_progress.emit(json.dumps({
+            "app_id": app_id, "status": "Downloading manifests", "progress": 85
+        }))
+        try:
+            from sff.core.storage.settings import get_setting
+            from sff.core.structs import Settings
+            from sff.manifest.downloader import ManifestDownloader
+
+            # _run_async executes this pipeline off the UI thread.  Obtain a
+            # provider through SFFUi so the Steam CM client remains bound to
+            # its dedicated thread rather than reusing a main-thread client.
+            provider = bridge._ui._steam_provider()
+            downloader = ManifestDownloader(provider, steam_path)
+            downloader.use_hubcap = selected_source == LuaEndpoint.HUBCAP
+            if get_setting(Settings.USE_PARALLEL_DOWNLOADS):
+                manifest_paths = downloader.download_manifests_parallel(
+                    parsed, auto_manifest=True
+                )
+            else:
+                manifest_paths = downloader.download_manifests(
+                    parsed, auto_manifest=True
+                )
+            if not manifest_paths:
+                raise RuntimeError("No depot manifests could be downloaded")
+        except Exception as e:
+            logger.exception("manifest download failed for app %s", app_id)
+            bridge.download_progress.emit(json.dumps({
+                "task": "download_fastest",
+                "app_id": app_id,
+                "status": f"Manifest download failed: {e}",
+                "progress": 0,
+            }))
+            return False
 
         # Step 10: track in download manager
         bridge.download_progress.emit(json.dumps({
