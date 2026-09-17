@@ -120,9 +120,13 @@ internal static class SteamInstallService
         }
         else
         {
-            var depotEntries = FormatDepotEntries(keys, GetIndentation(config, depotsBlock.Start) + "\t", config[depotsBlock.Start..depotsBlock.End]);
+            var existingDepotsBlock = depotsBlock.Value;
+            var depotEntries = FormatDepotEntries(
+                keys,
+                GetIndentation(config, existingDepotsBlock.Start) + "\t",
+                config[existingDepotsBlock.Start..existingDepotsBlock.End]);
             if (depotEntries.Length > 0)
-                config = config.Insert(depotsBlock.End, $"\n{depotEntries}");
+                config = config.Insert(existingDepotsBlock.End, $"\n{depotEntries}");
         }
 
         WriteAtomically(configPath, Encoding.UTF8.GetBytes(config));
