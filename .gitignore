@@ -12,6 +12,8 @@ analytics.json
 greenluma/
 build/
 dist/
+bin/
+obj/
 .hypothesis/
 .pytest_cache/
 htmlcov/

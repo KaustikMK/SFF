@@ -57,7 +57,7 @@ If the install fails, ask on [Discord](https://discord.gg/steamidra).
 
 Run `SteaMidra_GUI.exe` and add a game on the Home tab. LumaCore makes it appear in the Steam library immediately. See the [User Guide](docs/USER_GUIDE.md) for how to add games.
 
-> Running from source (Python)? See the [Python Setup Guide](docs/PYTHON_SETUP.md).
+> Running from source? The released desktop UI is built with C#/.NET; see the [Native Desktop guide](docs/NATIVE_DESKTOP.md).
 
 ---
 
@@ -85,9 +85,9 @@ For the full walkthrough (supported distros, troubleshooting, what files go wher
 
 ## GUI features
 
-SteaMidra has a full graphical interface with a **Modern UI** and the classic Qt interface.
+SteaMidra has a native cross-platform desktop interface built with C# and Avalonia. It does not require a Python, Qt, or QWebEngine runtime.
 
-**Modern UI** — the new default interface, built with QWebEngine. Accessible from a clean sidebar with 7 tabs: Home (game picker with auto-refresh), Store (search/browse Hubcap, grid/list, pagination), Library (installed games), Downloads (live progress + history), Fix Game (full emulator pipeline), Cloud Saves (scan/backup/restore, Google Drive, rclone with 17 provider shortcuts, All Save Locations), and Settings. Supports 11+ themes, tooltips, and toast notifications.
+**Native UI** — the default interface, built with C# and Avalonia. It is packaged as a self-contained .NET desktop app and is accessible from a clean sidebar with Home, Store, Library, Downloads, Fix Game, Cloud Saves, and Settings pages. It has no Python or embedded-browser runtime dependency.
 
 **What the GUI gives you:**
 - **Tabbed interface** — Main, Store, Downloads, Fix Game, Tools, and Cloud Saves tabs.
