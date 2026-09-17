@@ -146,8 +146,8 @@ public sealed class MainWindow : Window
             var result = await SteamInstallService.InstallAsync(
                 steamPath, game.AppId, _settings.HubcapApiKey ?? string.Empty,
                 progress => Dispatcher.UIThread.Post(() => _status.Text = progress));
-            _downloads.Add(new DownloadItem(game.Name, game.AppId, $"Installed {result.ManifestCount} manifest(s)"));
-            _status.Text = $"Installed Lua and {result.ManifestCount} manifest(s) for {game.Name}. Restart Steam if it is already running.";
+            _downloads.Add(new DownloadItem(game.Name, game.AppId, $"Installed {result.DepotKeyCount} depot key(s) and {result.ManifestCount} manifest(s)"));
+            _status.Text = $"Installed Lua, {result.DepotKeyCount} depot key(s), and {result.ManifestCount} manifest(s) for {game.Name}. Restart Steam if it is already running.";
         }
         catch (Exception exception)
         {
