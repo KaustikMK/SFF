@@ -1,5 +1,7 @@
 using System.IO.Compression;
 using System.Net.Http.Headers;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace SteaMidra.Desktop;
 
@@ -9,7 +11,7 @@ internal static class SteamInstallService
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
 
     /// <summary>
-    /// Fetches the authenticated Hubcap bundle, then writes its Lua and depot manifests to Steam.
+    /// Fetches the authenticated Hubcap bundle, then writes its Lua, depot keys, and manifests to Steam.
     /// No Steam URI is opened: Steam can discover the files when it next reads its configuration.
     /// </summary>
     internal static async Task<SteamInstallResult> InstallAsync(
@@ -34,7 +36,7 @@ internal static class SteamInstallService
         reportProgress?.Invoke("Validating downloaded Lua and manifests…");
         var files = ReadBundle(bundle, appId);
 
-        reportProgress?.Invoke("Installing Lua and manifests into Steam…");
+        reportProgress?.Invoke("Installing Lua, depot keys, and manifests into Steam…");
         var luaDirectory = Path.Combine(steamPath, "config", "stplug-in");
         var depotCache = Path.Combine(steamPath, "depotcache");
         var configDepotCache = Path.Combine(steamPath, "config", "depotcache");
@@ -43,6 +45,8 @@ internal static class SteamInstallService
         Directory.CreateDirectory(configDepotCache);
 
         WriteAtomically(Path.Combine(luaDirectory, $"{appId}.lua"), files.Lua);
+        reportProgress?.Invoke("Installing depot decryption keys…");
+        var keyCount = InstallDepotKeys(steamPath, files.Lua);
         foreach (var manifest in files.Manifests)
         {
             WriteAtomically(Path.Combine(depotCache, manifest.Name), manifest.Contents);
@@ -50,7 +54,7 @@ internal static class SteamInstallService
             WriteAtomically(Path.Combine(configDepotCache, manifest.Name), manifest.Contents);
         }
 
-        return new SteamInstallResult(files.Manifests.Count);
+        return new SteamInstallResult(files.Manifests.Count, keyCount);
     }
 
     private static BundleFiles ReadBundle(byte[] bundle, string appId)
@@ -87,7 +91,93 @@ internal static class SteamInstallService
     }
 
     private static bool IsManifestName(string name) =>
-        System.Text.RegularExpressions.Regex.IsMatch(name, @"^\d+_\d+\.manifest$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        Regex.IsMatch(name, @"^\d+_\d+\.manifest$", RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// Mirrors the regular Windows install workflow by copying the depot keys
+    /// embedded in the Lua into Steam's config.vdf. LumaCore reads the Lua,
+    /// while Steam itself needs these keys to decrypt the downloaded depots.
+    /// </summary>
+    private static int InstallDepotKeys(string steamPath, byte[] lua)
+    {
+        var keys = ReadDepotKeys(lua);
+        if (keys.Count == 0) return 0;
+
+        var configPath = Path.Combine(steamPath, "config", "config.vdf");
+        if (!File.Exists(configPath))
+            throw new FileNotFoundException("Steam config.vdf was not found. Start Steam once, then try again.", configPath);
+
+        var config = File.ReadAllText(configPath, Encoding.UTF8);
+        var steamBlock = FindBlock(config, "Steam")
+            ?? throw new InvalidDataException("Steam config.vdf does not contain the Steam configuration block.");
+        var depotsBlock = FindBlock(config, "depots", steamBlock.Start, steamBlock.End);
+        var indent = GetIndentation(config, steamBlock.Start) + "\t";
+
+        if (depotsBlock is null)
+        {
+            var depotEntries = FormatDepotEntries(keys, indent + "\t");
+            config = config.Insert(steamBlock.End, $"\n{indent}\"depots\"\n{indent}{{\n{depotEntries}{indent}}}\n");
+        }
+        else
+        {
+            var depotEntries = FormatDepotEntries(keys, GetIndentation(config, depotsBlock.Start) + "\t", config[depotsBlock.Start..depotsBlock.End]);
+            if (depotEntries.Length > 0)
+                config = config.Insert(depotsBlock.End, $"\n{depotEntries}");
+        }
+
+        WriteAtomically(configPath, Encoding.UTF8.GetBytes(config));
+        return keys.Count;
+    }
+
+    private static Dictionary<string, string> ReadDepotKeys(byte[] lua)
+    {
+        var keys = new Dictionary<string, string>(StringComparer.Ordinal);
+        var luaText = Encoding.UTF8.GetString(lua);
+        foreach (Match match in Regex.Matches(luaText,
+                     """addappid\s*\(\s*(?<depot>\d+)\s*,\s*[01]\s*,\s*[\"'](?<key>[0-9a-fA-F]{64})[\"']\s*\)""",
+                     RegexOptions.IgnoreCase))
+        {
+            keys[match.Groups["depot"].Value] = match.Groups["key"].Value.ToLowerInvariant();
+        }
+        return keys;
+    }
+
+    private static string FormatDepotEntries(IReadOnlyDictionary<string, string> keys, string indent, string existing = "") =>
+        string.Concat(keys
+            .Where(pair => !Regex.IsMatch(existing, $"\\\"{Regex.Escape(pair.Key)}\\\"\\s*\\{{", RegexOptions.IgnoreCase))
+            .Select(pair => $"{indent}\"{pair.Key}\"\n{indent}{{\n{indent}\t\"DecryptionKey\"\t\t\"{pair.Value}\"\n{indent}}}\n"));
+
+    private static (int Start, int End)? FindBlock(string vdf, string name, int start = 0, int? end = null)
+    {
+        var limit = end ?? vdf.Length;
+        var key = Regex.Match(vdf[start..limit], $"\\\"{Regex.Escape(name)}\\\"\\s*\\{{", RegexOptions.IgnoreCase);
+        if (!key.Success) return null;
+        var openBrace = start + key.Index + key.Length - 1;
+        var closeBrace = FindMatchingBrace(vdf, openBrace, limit);
+        return closeBrace < 0 ? null : (openBrace, closeBrace);
+    }
+
+    private static int FindMatchingBrace(string text, int openBrace, int limit)
+    {
+        var depth = 0;
+        var inQuote = false;
+        for (var index = openBrace; index < limit; index++)
+        {
+            if (text[index] == '"' && (index == 0 || text[index - 1] != '\\')) inQuote = !inQuote;
+            if (inQuote) continue;
+            if (text[index] == '{') depth++;
+            else if (text[index] == '}' && --depth == 0) return index;
+        }
+        return -1;
+    }
+
+    private static string GetIndentation(string text, int index)
+    {
+        var lineStart = text.LastIndexOf('\n', Math.Max(0, index - 1)) + 1;
+        var length = 0;
+        while (lineStart + length < text.Length && (text[lineStart + length] == '\t' || text[lineStart + length] == ' ')) length++;
+        return text.Substring(lineStart, length);
+    }
 
     private static void WriteAtomically(string path, byte[] contents)
     {
@@ -107,4 +197,4 @@ internal static class SteamInstallService
     private sealed record BundleFiles(byte[] Lua, List<BundleFile> Manifests);
 }
 
-internal sealed record SteamInstallResult(int ManifestCount);
+internal sealed record SteamInstallResult(int ManifestCount, int DepotKeyCount);
